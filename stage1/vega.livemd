@@ -1,0 +1,37 @@
+# vega
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3.1"},
+  {:vega_lite, "~> 0.1.6"},
+  {:kino_vega_lite, "~> 0.1.7"}
+])
+```
+
+## Section
+
+```elixir
+alias VegaLite, as: Vl
+```
+
+```elixir
+Vl.new(width: 400, height: 400)
+|> Vl.data_from_values(iteration: 1..100, score: 1..100)
+|> Vl.mark(:line)
+|> Vl.encode_field(:x, "iteration", type: :quantitative)
+|> Vl.encode_field(:y, "score", type: :quantitative, scale: [type: :log])
+```
+
+```elixir
+data =
+  1..100
+  |> Enum.map(fn x ->
+    :math.sin(x / 5)
+  end)
+
+VegaLite.new(width: 400, height: 400)
+|> VegaLite.data_from_values(iteration: 1..100, score: data)
+|> VegaLite.mark(:line)
+|> VegaLite.encode_field(:x, "iteration", type: :quantitative)
+|> VegaLite.encode_field(:y, "score", type: :quantitative)
+```

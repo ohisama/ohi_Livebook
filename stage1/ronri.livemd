@@ -1,0 +1,86 @@
+# ronri
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+defmodule Ronri do
+  def start_link do
+    Agent.start_link(
+      fn ->
+        [a: [0, 0, 0, 0], b: [0, 0, 0, 0], c: [0, 0, 0, 0], m: 3]
+      end,
+      name: __MODULE__
+    )
+  end
+
+  def init(o, p) do
+    Agent.update(__MODULE__, fn v ->
+      d = [0, 1, 0, 1]
+      v = List.keyreplace(v, :a, 0, {:a, d})
+      d = [0, 0, 1, 1]
+      List.keyreplace(v, :b, 0, {:b, d})
+    end)
+  end
+
+  def nand(o, p) do
+    Agent.update(__MODULE__, fn v ->
+      d = [1, 1, 1, 0]
+      List.keyreplace(v, :c, 0, {:c, d})
+    end)
+  end
+
+  def nor(o, p) do
+    Agent.update(__MODULE__, fn v ->
+      d = [1, 0, 0, 0]
+      List.keyreplace(v, :c, 0, {:c, d})
+    end)
+  end
+
+  def xor(o, p) do
+    Agent.update(__MODULE__, fn v ->
+      d = [0, 1, 1, 0]
+      List.keyreplace(v, :c, 0, {:c, d})
+    end)
+  end
+
+  def and0(o, p) do
+    Agent.update(__MODULE__, fn v ->
+      d = [0, 0, 0, 1]
+      List.keyreplace(v, :c, 0, {:c, d})
+    end)
+  end
+
+  def or0(o, p) do
+    Agent.update(__MODULE__, fn v ->
+      d = [0, 1, 1, 1]
+      List.keyreplace(v, :c, 0, {:c, d})
+    end)
+  end
+
+  def print() do
+    Agent.get(__MODULE__, fn v ->
+      {_, a} = List.keyfind(v, :a, 0)
+      {_, b} = List.keyfind(v, :b, 0)
+      {_, c} = List.keyfind(v, :c, 0)
+
+      0..3
+      |> Enum.map(fn n ->
+        [{0, Enum.at(a, n)}, {1, Enum.at(b, n)}, {2, Enum.at(c, n)}]
+      end)
+      |> Kino.DataTable.new()
+    end)
+  end
+end
+
+Ronri.start_link()
+Ronri.init(0, 1)
+
+Ronri.xor(0, 1)
+Ronri.print()
+```

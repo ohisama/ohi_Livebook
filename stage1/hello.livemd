@@ -1,0 +1,658 @@
+# hello
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.10.0"},
+  {:req, "~> 0.3.6"},
+  {:socket, "~> 0.3"}
+])
+```
+
+## Section
+
+```elixir
+IO.puts("ok")
+
+defmodule FizzBuzz do
+  defp buzz(i) do
+    cond do
+      rem(i, 15) == 0 ->
+        "FizzBuzz"
+
+      rem(i, 5) == 0 ->
+        "Buzz"
+
+      rem(i, 3) == 0 ->
+        "Fizz"
+
+      :else ->
+        Integer.to_string(i)
+    end
+  end
+
+  def say do
+    1..100
+    |> Enum.map(fn x ->
+      x
+      |> buzz
+    end)
+    |> Enum.reduce("", fn v, s ->
+      s = s <> v <> " "
+    end)
+  end
+end
+
+FizzBuzz.say()
+```
+
+```elixir
+defmodule Zundoko do
+  def start() do
+    Stream.repeatedly(fn ->
+      ["ズン", "ドコ"]
+      |> Enum.random()
+    end)
+    |> run
+  end
+
+  def run(input) do
+    match = ["ドコ", "ズン", "ズン", "ズン", "ドコ"]
+    eol = "キ・ヨ・シ！"
+
+    input
+    |> Stream.transform([], fn item, acc ->
+      if List.last(acc) == eol do
+        {:halt, nil}
+      else
+        if Enum.count(acc) < Enum.count(match) do
+          {[item], acc ++ [item]}
+        else
+          if acc == match do
+            {[eol], acc ++ [eol]}
+          else
+            {[item], [item]}
+          end
+        end
+      end
+      |> IO.inspect()
+    end)
+    |> Enum.to_list()
+    |> Enum.reduce("", fn v, s ->
+      s = s <> v <> " "
+    end)
+  end
+end
+
+defmodule Zundoko2 do
+  def start() do
+    Stream.repeatedly(fn ->
+      ["ズン", "ドコ"]
+      |> Enum.random()
+    end)
+    |> run
+  end
+
+  def run(input) do
+    match = ["ドコ", "ズン", "ズン", "ズン"]
+    eol = "ドコ キ・ヨ・シ！"
+    doko = "ドコ"
+
+    input
+    |> Stream.transform([], fn item, acc ->
+      if List.last(acc) == eol do
+        {:halt, nil}
+      else
+        if item == doko do
+          {[item], [item]}
+        else
+          if Enum.count(acc) < Enum.count(match) do
+            {[item], acc ++ [item]}
+          else
+            if acc == match do
+              {[eol], acc ++ [eol]}
+            else
+              {[item], [item]}
+            end
+          end
+        end
+      end
+      |> IO.inspect()
+    end)
+    |> Enum.to_list()
+    |> Enum.reduce("", fn v, s ->
+      s = s <> v <> " "
+    end)
+  end
+end
+
+Zundoko.start()
+|> IO.inspect()
+
+Zundoko2.start()
+|> IO.inspect()
+```
+
+```elixir
+defmodule Kuku do
+  def print do
+    for i <- 1..9 do
+      a1 = i * 1
+      a2 = i * 2
+      a3 = i * 3
+      a4 = i * 4
+      a5 = i * 5
+      a6 = i * 6
+      a7 = i * 7
+      a8 = i * 8
+      a9 = i * 9
+      IO.puts("#{a1} #{a2} #{a3} #{a4} #{a5} #{a6} #{a7} #{a8} #{a9}")
+    end
+  end
+end
+
+Kuku.print()
+```
+
+```elixir
+defmodule Main do
+  def ybb(name) do
+    IO.puts("契約書")
+    IO.puts("甲は油屋当主として、乙を油屋に雇用することを契約し、")
+    IO.puts("労働に伴う対価の支払いを右の通り、約定する。")
+    IO.puts("なお、一日の労働の対価は金百円とする。")
+    IO.puts("甲　油屋当主　湯婆婆")
+    IO.puts("")
+    IO.puts("乙")
+    IO.puts("契約書だよ。そこに名前を書きな。")
+    IO.puts("フン。#{name}というのかい。贅沢な名だねぇ。")
+    index = :rand.uniform(String.length(name))
+    new_name = String.slice(name, index - 1, 1)
+    IO.puts("今からお前の名前は#{new_name}だ。いいかい、#{new_name}だよ。分かったら返事をするんだ、#{new_name}!!")
+  end
+
+  def main do
+    name = IO.read(:line) |> String.trim()
+    ybb(name)
+  end
+end
+
+Main.main()
+```
+
+```elixir
+{max_trace, _} = IO.gets("Max Trace") |> Integer.parse()
+```
+
+```elixir
+
+```
+
+```elixir
+frame = Kino.Frame.new()
+```
+
+```elixir
+inputs = [name: Kino.Input.text("Name"), message: Kino.Input.text("Message")]
+form = Kino.Control.form(inputs, submit: "Send", reset_on_submit: [:message])
+```
+
+```elixir
+Kino.listen(form, fn %{data: %{name: name, message: message}, origin: origin} ->
+  if name != "" and message != "" do
+    content = Kino.Markdown.new("**#{name}**: #{message}")
+    Kino.Frame.append(frame, content)
+  else
+    content = Kino.Markdown.new("_ERROR! You need a name and message to submit..._")
+    Kino.Frame.append(frame, content, to: origin)
+  end
+end)
+```
+
+```elixir
+api_key_input = Kino.Input.password("API_KEY")
+```
+
+```elixir
+auth_header = {"X-API-KEY", Kino.Input.read(api_key_input)}
+# "dummy"
+```
+
+```elixir
+1..9
+|> Enum.to_list()
+|> then(fn list ->
+  Enum.map(list, fn x ->
+    Enum.map(list, fn y ->
+      x * y
+    end)
+  end)
+end)
+|> Enum.map(&%{List.first(&1) => &1})
+|> then(&[%{0 => Enum.at(&1, 0)[1]} | &1])
+|> Enum.reduce(fn x, merged ->
+  Map.merge(merged, x)
+end)
+|> Kino.DataTable.new()
+```
+
+```elixir
+Req.get!("https://api.github.com/repos/elixir-lang/elixir")
+|> Kino.Tree.new()
+```
+
+```elixir
+defmodule KinoCustom.Three do
+  use Kino.JS
+
+  def new(color) do
+    Kino.JS.new(__MODULE__, color)
+  end
+
+  asset "main.js" do
+    """
+    import "https://unpkg.com/three@0.142.0/build/three.min.js";
+    export function init(ctx, color) {
+    	const canvas = document.createElement("canvas");
+    	ctx.root.appendChild(canvas);
+    	const renderer = new THREE.WebGLRenderer({canvas: canvas});
+    	const width = 500;
+    	const height = 500;
+    	renderer.setSize(width, height);
+    	const scene = new THREE.Scene();
+    	const camera = new THREE.PerspectiveCamera(50, width / height, 1, 1000);
+    	camera.position.set(0, 0, 300);
+    	const size = 80;
+    	const geometry = new THREE.BoxGeometry(size, size, size);
+    	const material = new THREE.MeshStandardMaterial({color: color});
+    	const box = new THREE.Mesh(geometry, material);
+    	scene.add(box);
+    	const light = new THREE.DirectionalLight(0xffffff);
+    	light.intensity = 2;
+    	light.position.set(1, 1, 100);
+    	scene.add(light);
+    	renderer.render(scene, camera);
+    	tick();
+    	function tick() {
+    		requestAnimationFrame(tick);
+    		box.rotation.x += 0.05;
+    		box.rotation.y -= 0.05;
+    		renderer.render(scene, camera);
+    	}
+    }
+    """
+  end
+end
+```
+
+```elixir
+KinoCustom.Three.new("gold")
+```
+
+```elixir
+name = Kino.Input.text("Your name")
+```
+
+```elixir
+IO.puts("Hello, #{Kino.Input.read(name)}!")
+```
+
+```elixir
+IO.puts("Your name")
+name = IO.read(:line)
+# IO.puts("Hello, #{name}!")
+```
+
+```elixir
+hands = [
+  {0, "グー"},
+  {1, "チョキ"},
+  {2, "パー"}
+]
+
+results = ["あいこ", "あなたの勝ち", "あなたの負け"]
+
+get_hand_name = fn hand ->
+  hands
+  |> Enum.at(hand)
+  |> elem(1)
+end
+
+fn x_hand, y_hand ->
+  rem(y_hand - x_hand, 3)
+end
+
+judge = fn x_hand, y_hand ->
+  IO.puts("あなたの手: #{get_hand_name.(x_hand)}")
+  IO.puts("あいての手: #{get_hand_name.(y_hand)}")
+  result = rem(y_hand - x_hand, 3)
+  result_name = Enum.at(results, result)
+  IO.puts("結果: #{result_name}")
+  result_name
+end
+
+my_hand_input = Kino.Input.select("あなたの手", hands)
+```
+
+```elixir
+my_hand = Kino.Input.read(my_hand_input)
+
+opponents_hand =
+  0..2
+  |> Enum.random()
+
+judge.(my_hand, opponents_hand)
+```
+
+```elixir
+IO.puts("契約書")
+IO.puts("甲は油屋当主として、乙を油屋に雇用することを契約し、")
+IO.puts("労働に伴う対価の支払いを右の通り、約定する。")
+IO.puts("なお、一日の労働の対価は金百円とする。")
+IO.puts("甲　油屋当主　湯婆婆")
+IO.puts("")
+IO.puts("乙")
+IO.puts("契約書だよ。そこに名前を書きな。")
+name = Kino.Input.text("")
+```
+
+```elixir
+name = Kino.Input.read(name)
+IO.puts("フン。#{name}というのかい。贅沢な名だねぇ。")
+index = :rand.uniform(String.length(name))
+new_name = String.slice(name, index - 1, 1)
+IO.puts("今からお前の名前は#{new_name}だ。いいかい、#{new_name}だよ。分かったら返事をするんだ、#{new_name}!!")
+```
+
+```elixir
+defmodule KinoGuide.HTML do
+  use Kino.JS
+
+  def new(html) when is_binary(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    export function init(ctx, html) {
+    ctx.root.innerHTML = html;
+    }
+    """
+  end
+end
+
+KinoGuide.HTML.new("""
+<h3>Look!</h3>
+<p>I wrote this HTML from <strong>Kino</strong>!</p>
+""")
+```
+
+```elixir
+defmodule KinoDocs.HTML do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    export function init(ctx, html) {
+    	ctx.importCSS("https://fonts.googleapis.com/css?family=Sofia")
+    	ctx.importCSS("main.css")
+    	ctx.root.innerHTML = html;
+    }
+    """
+  end
+
+  asset "main.css" do
+    """
+    body {
+    	font-family: "Sofia", sans-serif;
+    }
+    """
+  end
+end
+
+KinoDocs.HTML.new("""
+<div>
+  Hello
+  <ul>
+    <li>World</li>
+    <li>Elixir</li>
+    <li>Livebook</li>
+    <li>Kino</li>
+  </ul>
+</div>
+""")
+```
+
+```elixir
+defmodule KinoDocs.Mermaid do
+  use Kino.JS
+
+  def new(graph) do
+    Kino.JS.new(__MODULE__, graph)
+  end
+
+  asset "main.js" do
+    """
+    import "https://cdn.jsdelivr.net/npm/mermaid@9.1.3/dist/mermaid.min.js";
+    mermaid.initialize({ startOnLoad: false });
+    export function init(ctx, graph) {
+    	mermaid.render("graph1", graph, (svgSource, bindListeners) => {
+    		ctx.root.innerHTML = svgSource;
+    		bindListeners && bindListeners(ctx.root);
+    	});
+    }
+    """
+  end
+end
+
+KinoDocs.Mermaid.new("""
+graph TD;
+  A-->B;
+  A-->C;
+  B-->D;
+  C-->D;
+""")
+```
+
+```elixir
+defmodule KinoCustom.Bar do
+  use Kino.JS
+  use Kino.JS.Live
+
+  def new(width) do
+    Kino.JS.Live.new(__MODULE__, width)
+  end
+
+  def update(kino, width) do
+    Kino.JS.Live.cast(kino, {:update, width})
+  end
+
+  @impl true
+  def init(html, ctx) do
+    {:ok, assign(ctx, html: html)}
+  end
+
+  @impl true
+  def handle_connect(ctx) do
+    {:ok, ctx.assigns.html, ctx}
+  end
+
+  @impl true
+  def handle_cast({:update, width}, ctx) do
+    broadcast_event(ctx, "update", width)
+    {:noreply, assign(ctx, width: width)}
+  end
+
+  asset "main.js" do
+    """
+    export function init(ctx, width) {
+    	const bar = document.createElement("div");
+    	bar.className = "bar";
+    	bar.style.width = width;
+    	bar.style.height = "40px";
+    	bar.style.backgroundColor = "red";
+    	ctx.root.appendChild(bar);
+    	ctx.handleEvent("update", (width) => {
+    		bar.style.width = width
+    	});
+    }
+    """
+  end
+end
+
+bar = KinoCustom.Bar.new("50%")
+```
+
+```elixir
+Stream.interval(50)
+|> Stream.take(100)
+|> Kino.animate(fn width ->
+  KinoCustom.Bar.update(bar, "#{width}%")
+end)
+```
+
+```elixir
+defmodule ElixirSocketTesting.ClientAgent do
+  def start_link do
+    Agent.start_link(
+      fn ->
+        []
+      end,
+      name: __MODULE__
+    )
+  end
+
+  def add(client) do
+    Agent.update(__MODULE__, fn list ->
+      [client | list]
+    end)
+  end
+
+  def remove(client) do
+    Agent.update(__MODULE__, fn list ->
+      List.delete(list, client)
+    end)
+  end
+
+  def all do
+    Agent.get(__MODULE__, fn list ->
+      list
+    end)
+  end
+end
+
+defmodule Janken do
+  def hand(c) do
+    cond do
+      c == 0 ->
+        "グー"
+
+      c == 1 ->
+        "チョキ"
+
+      c == 2 ->
+        "パー"
+
+      :else ->
+        "うそ"
+    end
+  end
+
+  def judge(a, b) do
+    cond do
+      a == b ->
+        "あいこ"
+
+      a == 0 && b == 1 ->
+        "あなたの勝ち"
+
+      a == 1 && b == 2 ->
+        "あなたの勝ち"
+
+      a == 2 && b == 0 ->
+        "あなたの勝ち"
+
+      a == 0 && b == 2 ->
+        "あなたの負け"
+
+      a == 1 && b == 0 ->
+        "あなたの負け"
+
+      a == 2 && b == 1 ->
+        "あなたの負け"
+    end
+  end
+
+  def pon(a) do
+    res = ""
+
+    {a, _} =
+      a
+      |> Integer.parse()
+
+    res = res <> hand(a) <> "と"
+
+    b =
+      0..2
+      |> Enum.random()
+
+    res = res <> hand(b) <> "で、"
+    res = res <> judge(a, b)
+    res
+  end
+end
+
+defmodule Janken.Server do
+  alias ElixirSocketTesting.ClientAgent
+
+  def start(port \\ 50002) do
+    ClientAgent.start_link()
+    server = Socket.Web.listen!(port)
+    loop(server)
+  end
+
+  def loop(server) do
+    client =
+      server
+      |> Socket.Web.accept!()
+
+    client
+    |> Socket.Web.accept!()
+
+    ClientAgent.add(client)
+
+    Task.async(fn ->
+      recv(client)
+    end)
+
+    loop(server)
+  end
+
+  def recv(client) do
+    case client |> Socket.Web.recv!() do
+      {:text, message} ->
+        res = Janken.pon(message)
+        broadcast({:text, res})
+        recv(client)
+
+      {:close, _, _} ->
+        ClientAgent.remove(client)
+
+      other ->
+        IO.inspect(other)
+    end
+  end
+
+  def broadcast(packet) do
+    ClientAgent.all()
+    |> Enum.each(fn client ->
+      Socket.Web.send(client, packet)
+    end)
+  end
+end
+
+Janken.Server.start()
+```

@@ -1,0 +1,25 @@
+# hello2
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.10.0"},
+  {:req, "~> 0.3.6"}
+])
+```
+
+```elixir
+Req.get!("https://api.github.com/repos/elixir-lang/elixir")
+|> Kino.Tree.new()
+```
+
+```elixir
+Req.get!("https://qiita.com/api/v2/users/ohisama@github/items")
+|> Kino.Tree.new()
+```
+
+```elixir
+Req.get!("https://vega.github.io/editor/data/stocks.csv")
+|> Kino.Tree.new()
+```

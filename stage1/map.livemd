@@ -1,0 +1,619 @@
+# map
+
+```elixir
+Mix.install([
+  {:explorer, "~> 0.5"},
+  {:geo, "~> 3.4"},
+  {:kino, "~> 0.8"},
+  {:kino_maplibre, "~> 0.1.3"},
+  {:download, "~> 0.0.4"},
+  {:jason, "~> 1.4"}
+])
+```
+
+## Section
+
+```elixir
+alias MapLibre, as: Ml
+```
+
+```elixir
+geo_json =
+  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+  |> HTTPoison.get!()
+  |> Map.get(:body)
+  |> Jason.decode!()
+  |> Geo.JSON.decode!()
+
+Kino.Tree.new(geo_json)
+```
+
+```elixir
+Ml.new(zoom: 5, style: :street, center: {-117.6981659, 35.873333, 9.22})
+|> Ml.add_geo_source("data", geo_json)
+|> Ml.add_layer(
+  id: "stop",
+  source: "data",
+  type: :circle,
+  paint: [circle_color: "#aa00ff", circle_radius: 5]
+)
+```
+
+```elixir
+Ml.new(zoom: 4, style: :street, center: {141.154484, 39.702053})
+|> Ml.add_geo_source("data", geo_json)
+|> Ml.add_layer(
+  id: "stop",
+  source: "data",
+  type: :circle,
+  paint: [circle_color: "#aa00ff", circle_radius: 5]
+)
+|> Ml.add_layer_below_labels(
+  id: "mag",
+  type: :symbol,
+  source: "data",
+  layout: %{
+    text_field: [:get, "mag"],
+    text_offset: [0, 1.0],
+    text_size: 12,
+    text_font: ["Open Sans Bold"]
+  },
+  paint: [text_color: "#aa0055"]
+)
+|> Ml.add_layer_below_labels(
+  id: "sig",
+  type: :symbol,
+  source: "data",
+  layout: %{
+    text_field: [:get, "sig"],
+    text_offset: [0, -1.0],
+    text_size: 12,
+    text_font: ["Open Sans Bold"]
+  },
+  paint: [text_color: "#0033bf"]
+)
+|> Kino.MapLibre.new()
+```
+
+```elixir
+Ml.new(
+  center: {-90.73414, 14.55524},
+  zoom: 13,
+  style: "https://api.maptiler.com/maps/basic/style.json?key=Q4UbchekCfyvXvZcWRoU"
+)
+|> Ml.update_layer("building",
+  paint: [
+    fill_color: ["interpolate", ["exponential", 0.5], ["zoom"], 15, "#e2714b", 22, "#eee695"],
+    fill_opacity: ["interpolate", ["exponential", 0.5], ["zoom"], 15, 0, 22, 1]
+  ]
+)
+```
+
+```elixir
+markers = [
+  [{-68, 46}],
+  [{-68, 47}],
+  [{-68, 48}]
+]
+
+map =
+  Ml.new(center: {-68.13734351262877, 45.137451890638886}, zoom: 3)
+  |> Kino.MapLibre.add_marker({-68, 45}, color: "red", draggable: true)
+  |> Kino.MapLibre.add_marker({-69, 50})
+  |> Kino.MapLibre.add_markers(markers)
+  |> Kino.MapLibre.new()
+```
+
+```elixir
+defmodule Point do
+  use Agent
+
+  def start_link() do
+    Agent.start_link(
+      fn ->
+        []
+      end,
+      name: __MODULE__
+    )
+  end
+
+  def get() do
+    Agent.get(__MODULE__, fn v ->
+      v
+    end)
+  end
+
+  def cls() do
+    Agent.update(__MODULE__, fn v ->
+      []
+    end)
+  end
+
+  def put(x) do
+    Agent.update(__MODULE__, fn v ->
+      v ++ [x]
+    end)
+  end
+end
+
+Point.start_link()
+Point.cls()
+
+geojson =
+  """
+  {
+  		"bikuya": [{
+  				"lat": "37.929687",
+  				"lon": "140.151111",
+  				"name": "オートショップユニット"
+  		}, {
+  				"lat": "37.929220",
+  				"lon": "140.109344",
+  				"name": "（株）エイジュウプロ"
+  		}, {
+  				"lat": "37.923453",
+  				"lon": "140.093108",
+  				"name": "（株）ホンダウイングロードショウ"
+  		}, {
+  				"lat": "37.911333",
+  				"lon": "140.112004",
+  				"name": "（有）カーセンター葵商会"
+  		}, {
+  				"lat": "37.907591",
+  				"lon": "140.108036",
+  				"name": "塚本サイクル"
+  		}, {
+  				"lat": "37.928429",
+  				"lon": "140.114247",
+  				"name": "サイクルショップ川口"
+  		}, {
+  				"lat": "37.916279",
+  				"lon": "140.099879",
+  				"name": "サイクルショップ中村"
+  		}, {
+  				"lat": "37.917854",
+  				"lon": "140.101416",
+  				"name": "菅原商会"
+  		}, {
+  				"lat": "37.912485",
+  				"lon": "140.108688",
+  				"name": "サイクルセンター卯月"
+  		}, {
+  				"lat": "37.912049",
+  				"lon": "140.105914",
+  				"name": "ホンダ野村モータース"
+  		}, {
+  				"lat": "37.869915",
+  				"lon": "140.103534",
+  				"name": "モーターハウスＫ"
+  		}, {
+  				"lat": "37.918955",
+  				"lon": "140.109289",
+  				"name": "ライダースサロン・ヤマカ"
+  		}, {
+  				"lat": "37.915746",
+  				"lon": "140.108313",
+  				"name": "中央ホンダ"
+  		}, {
+  				"lat": "37.905011",
+  				"lon": "140.107225",
+  				"name": "香澄ホンダ"
+  		}, {
+  				"lat": "37.912663",
+  				"lon": "140.123328",
+  				"name": "佐藤オート商会"
+  		}, {
+  				"lat": "37.910789",
+  				"lon": "140.121636",
+  				"name": "香坂輪店"
+  		}, {
+  				"lat": "37.958525",
+  				"lon": "140.125682",
+  				"name": "斎藤モータース"
+  		}, {
+  				"lat": "37.956678",
+  				"lon": "140.117820",
+  				"name": "ニューホンダ石山"
+  		}, {
+  				"lat": "37.903901",
+  				"lon": "140.131694",
+  				"name": "二輪屋たかはし"
+  		}, {
+  				"lat": "37.886019",
+  				"lon": "140.104554",
+  				"name": "夢工場"
+  		}, {
+  				"lat": "37.874814",
+  				"lon": "140.103239",
+  				"name": "あべ輪店"
+  		}, {
+  				"lat": "37.905055",
+  				"lon": "140.137379",
+  				"name": "レッドバロン米沢"
+  		}]
+  }
+  """
+  |> Jason.decode!()
+  |> Map.get("bikuya")
+  |> Enum.map(fn i ->
+    lat = i |> Map.get("lat") |> String.to_float()
+    lon = i |> Map.get("lon") |> String.to_float()
+    Point.put([{lon, lat}])
+  end)
+
+map =
+  Ml.new(style: :street, center: {140.1, 37.9}, zoom: 10)
+  |> Kino.MapLibre.add_markers(Point.get())
+  |> Kino.MapLibre.new()
+```
+
+```elixir
+defmodule KinoMap.Leaflet do
+  use Kino.JS
+
+  def new(html) when is_binary(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.8.0/leaflet.js";
+    export function init(ctx, html) {
+    	ctx.importCSS("https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.8.0/leaflet.css");
+    	const mapid = document.createElement("div");
+    	mapid.id = "mapid";
+    	mapid.style.width = "800px";
+    	mapid.style.height = "500px";
+    	ctx.root.appendChild(mapid);
+    	var map = L.map('mapid').setView([37.9, 140.15], 11);
+        L.control.layers({
+         "OpenStreetMap": L.tileLayer('https://c.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    		  maxZoom: 25,
+    		  maxNativeZoom: 19,
+    		  attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors, '
+          }).addTo(map), 
+    		"地理院 標準地図": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+    			maxZoom: 25,
+    			maxNativeZoom: 18,
+    			attribution: 'Map data <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
+         }), 
+    		"地理院 淡色地図(Zoom2～)": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+    			minZoom: 2,
+    			maxZoom: 18,
+    			attribution: 'Map data <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
+         }), 
+    		"地理院 写真(Zoom9～)": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', {
+    			minZoom: 9,
+    			maxZoom: 18,
+    			attribution: 'Map data <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>( Zoom9～13:Landsat8画像（GSI,TSIC,GEO Grid/AIST）, Landsat8画像（courtesy of the U.S. Geological Survey）, 海底地形（GEBCO）)'
+         })
+        }).addTo(map);;
+        var features = JSON.parse(html);
+        L.geoJson(features).addTo(map);      
+        L.marker([37.8, 140.0],{"title":"koko"}).addTo(map);
+    }
+    """
+  end
+end
+
+geojson =
+  """
+  {
+  		"bikuya": [{
+  				"lat": "37.929687",
+  				"lon": "140.151111",
+  				"name": "オートショップユニット"
+  		}, {
+  				"lat": "37.929220",
+  				"lon": "140.109344",
+  				"name": "（株）エイジュウプロ"
+  		}, {
+  				"lat": "37.923453",
+  				"lon": "140.093108",
+  				"name": "（株）ホンダウイングロードショウ"
+  		}, {
+  				"lat": "37.911333",
+  				"lon": "140.112004",
+  				"name": "（有）カーセンター葵商会"
+  		}, {
+  				"lat": "37.907591",
+  				"lon": "140.108036",
+  				"name": "塚本サイクル"
+  		}, {
+  				"lat": "37.928429",
+  				"lon": "140.114247",
+  				"name": "サイクルショップ川口"
+  		}, {
+  				"lat": "37.916279",
+  				"lon": "140.099879",
+  				"name": "サイクルショップ中村"
+  		}, {
+  				"lat": "37.917854",
+  				"lon": "140.101416",
+  				"name": "菅原商会"
+  		}, {
+  				"lat": "37.912485",
+  				"lon": "140.108688",
+  				"name": "サイクルセンター卯月"
+  		}, {
+  				"lat": "37.912049",
+  				"lon": "140.105914",
+  				"name": "ホンダ野村モータース"
+  		}, {
+  				"lat": "37.869915",
+  				"lon": "140.103534",
+  				"name": "モーターハウスＫ"
+  		}, {
+  				"lat": "37.918955",
+  				"lon": "140.109289",
+  				"name": "ライダースサロン・ヤマカ"
+  		}, {
+  				"lat": "37.915746",
+  				"lon": "140.108313",
+  				"name": "中央ホンダ"
+  		}, {
+  				"lat": "37.905011",
+  				"lon": "140.107225",
+  				"name": "香澄ホンダ"
+  		}, {
+  				"lat": "37.912663",
+  				"lon": "140.123328",
+  				"name": "佐藤オート商会"
+  		}, {
+  				"lat": "37.910789",
+  				"lon": "140.121636",
+  				"name": "香坂輪店"
+  		}, {
+  				"lat": "37.958525",
+  				"lon": "140.125682",
+  				"name": "斎藤モータース"
+  		}, {
+  				"lat": "37.956678",
+  				"lon": "140.117820",
+  				"name": "ニューホンダ石山"
+  		}, {
+  				"lat": "37.903901",
+  				"lon": "140.131694",
+  				"name": "二輪屋たかはし"
+  		}, {
+  				"lat": "37.886019",
+  				"lon": "140.104554",
+  				"name": "夢工場"
+  		}, {
+  				"lat": "37.874814",
+  				"lon": "140.103239",
+  				"name": "あべ輪店"
+  		}, {
+  				"lat": "37.905055",
+  				"lon": "140.137379",
+  				"name": "レッドバロン米沢"
+  		}]
+  }
+  """
+  |> Jason.decode!()
+  |> Map.get("bikuya")
+  |> Enum.reduce("{\"type\":\"FeatureCollection\",\"features\":[", fn i, acc ->
+    lat = i |> Map.get("lat")
+    lon = i |> Map.get("lon")
+    name = i |> Map.get("name")
+
+    acc <>
+      "{\"type\":\"Feature\",\"properties\":{\"name\":\"#{name}\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[\"#{lon}\",\"#{lat}\"]}},"
+  end)
+
+geojson = geojson <> "{}]}"
+
+KinoMap.Leaflet.new(geojson)
+```
+
+```elixir
+defmodule KinoMap.Cesium do
+  use Kino.JS
+
+  def new(html) when is_binary(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://cesium.com/downloads/cesiumjs/releases/1.64/Build/Cesium/Cesium.js";
+    export function init(ctx, html) {
+    	ctx.importCSS("https://cesium.com/downloads/cesiumjs/releases/1.64/Build/Cesium/Widgets/widgets.css");
+    	const mapid = document.createElement("div");
+    	mapid.id = "cesiumContainer";
+    	mapid.style.width = "800px";
+    	mapid.style.height = "600px";
+    	ctx.root.appendChild(mapid);
+    	var viewer = new Cesium.Viewer('cesiumContainer');
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(140.0 + 0.4, 38.0 - 1.0, 100000.0),
+        orientation: {
+          heading: Cesium.Math.toRadians(-20.0),
+          pitch: Cesium.Math.toRadians(-35.0),
+          roll: 0.0
+        }
+      });
+    }
+    """
+  end
+end
+
+KinoMap.Cesium.new("")
+```
+
+```elixir
+defmodule KinoMap.Deckgl do
+  use Kino.JS
+
+  def new(html) when is_binary(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://unpkg.com/deck.gl@latest/dist.min.js";
+    export function init(ctx, html) {   	
+      const mapid = document.createElement("div");
+    	mapid.id = "map";
+    	mapid.style.width = "800px";
+    	mapid.style.height = "600px";
+    	ctx.root.appendChild(mapid);
+    	const tileLayer = new deck.TileLayer({
+       data: 'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+       minZoom: 0,
+       maxZoom: 19,
+       tileSize: 256,
+       renderSubLayers: props => {
+        const {
+         bbox: {
+              west, 
+              south, 
+              east, 
+              north
+            }
+        } = props.tile;
+        return new deck.BitmapLayer(props, {
+         data: null,
+         image: props.data,
+         bounds: [west, south, east, north]
+        });
+       }
+      });
+      var geojson = JSON.parse(html);
+      const geojsonLayer = new deck.GeoJsonLayer({
+        id: 'geojson_layer',
+        data: geojson.features,
+       	pointType: 'circle', 
+      getPointRadius: 300, 
+    		getFillColor: [255, 0, 0, 180],
+    		getLineColor: [0, 255, 0, 255],
+    		lineWidthMinPixels: 2,
+
+      });
+      const deckgl = new deck.DeckGL({
+       container: 'map',
+        initialViewState: {
+          latitude: 37.9,
+          longitude: 140.1,
+          zoom: 11,
+          maxZoom: 16,
+          pitch: 80,
+          bearing: -15
+        },
+        controller: true,
+        layers: [tileLayer, geojsonLayer, ],
+      });
+    }
+    """
+  end
+end
+
+geojson =
+  """
+  {
+  		"bikuya": [{
+  				"lat": "37.929687",
+  				"lon": "140.151111",
+  				"name": "オートショップユニット"
+  		}, {
+  				"lat": "37.929220",
+  				"lon": "140.109344",
+  				"name": "（株）エイジュウプロ"
+  		}, {
+  				"lat": "37.923453",
+  				"lon": "140.093108",
+  				"name": "（株）ホンダウイングロードショウ"
+  		}, {
+  				"lat": "37.911333",
+  				"lon": "140.112004",
+  				"name": "（有）カーセンター葵商会"
+  		}, {
+  				"lat": "37.907591",
+  				"lon": "140.108036",
+  				"name": "塚本サイクル"
+  		}, {
+  				"lat": "37.928429",
+  				"lon": "140.114247",
+  				"name": "サイクルショップ川口"
+  		}, {
+  				"lat": "37.916279",
+  				"lon": "140.099879",
+  				"name": "サイクルショップ中村"
+  		}, {
+  				"lat": "37.917854",
+  				"lon": "140.101416",
+  				"name": "菅原商会"
+  		}, {
+  				"lat": "37.912485",
+  				"lon": "140.108688",
+  				"name": "サイクルセンター卯月"
+  		}, {
+  				"lat": "37.912049",
+  				"lon": "140.105914",
+  				"name": "ホンダ野村モータース"
+  		}, {
+  				"lat": "37.869915",
+  				"lon": "140.103534",
+  				"name": "モーターハウスＫ"
+  		}, {
+  				"lat": "37.918955",
+  				"lon": "140.109289",
+  				"name": "ライダースサロン・ヤマカ"
+  		}, {
+  				"lat": "37.915746",
+  				"lon": "140.108313",
+  				"name": "中央ホンダ"
+  		}, {
+  				"lat": "37.905011",
+  				"lon": "140.107225",
+  				"name": "香澄ホンダ"
+  		}, {
+  				"lat": "37.912663",
+  				"lon": "140.123328",
+  				"name": "佐藤オート商会"
+  		}, {
+  				"lat": "37.910789",
+  				"lon": "140.121636",
+  				"name": "香坂輪店"
+  		}, {
+  				"lat": "37.958525",
+  				"lon": "140.125682",
+  				"name": "斎藤モータース"
+  		}, {
+  				"lat": "37.956678",
+  				"lon": "140.117820",
+  				"name": "ニューホンダ石山"
+  		}, {
+  				"lat": "37.903901",
+  				"lon": "140.131694",
+  				"name": "二輪屋たかはし"
+  		}, {
+  				"lat": "37.886019",
+  				"lon": "140.104554",
+  				"name": "夢工場"
+  		}, {
+  				"lat": "37.874814",
+  				"lon": "140.103239",
+  				"name": "あべ輪店"
+  		}, {
+  				"lat": "37.905055",
+  				"lon": "140.137379",
+  				"name": "レッドバロン米沢"
+  		}]
+  }
+  """
+  |> Jason.decode!()
+  |> Map.get("bikuya")
+  |> Enum.reduce("{\"type\":\"FeatureCollection\",\"features\":[", fn i, acc ->
+    lat = i |> Map.get("lat")
+    lon = i |> Map.get("lon")
+    name = i |> Map.get("name")
+
+    acc <>
+      "{\"type\":\"Feature\",\"properties\":{\"name\":\"#{name}\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[#{lon},#{lat}]}},"
+  end)
+
+geojson = geojson <> "{}]}"
+
+KinoMap.Deckgl.new(geojson)
+```

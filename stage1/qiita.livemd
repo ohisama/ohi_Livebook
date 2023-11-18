@@ -1,0 +1,83 @@
+# qiita
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3"},
+  {:kino_vega_lite, "~> 0.1"},
+  {:kino_explorer, "~> 0.1.11"},
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+defmodule Qiita do
+  @auth_header {"Authorization", "Bearer 1ad5804d4f290b6f015ebb122f70f530bb94299e"}
+  def get_articles(page) do
+    "https://qiita.com/api/v2/authenticated_user/items?page=#{page}&per_page=100"
+    |> Req.get!(headers: [@auth_header])
+    |> Map.get(:body)
+  end
+
+  def get_articles_cyclic(page) do
+    IO.inspect("get page #{page}")
+    :timer.sleep(1000)
+    articles = get_articles(page)
+
+    case articles do
+      [] ->
+        IO.inspect("stop")
+        articles
+
+      _ ->
+        articles ++ get_articles_cyclic(page + 1)
+    end
+  end
+
+  def get_all_articles() do
+    get_articles_cyclic(1)
+  end
+end
+
+all_articles = Qiita.get_articles(1)
+# IO.inspect(articles)
+Enum.count(all_articles)
+
+# all_articles = Qiita.get_all_articles()
+# Enum.count(all_articles)
+```
+
+```elixir
+qiita_df =
+  all_articles
+  |> Enum.map(fn item ->
+    %{
+      "title" => item["title"],
+      "private" => item["private"],
+      "created_at" => NaiveDateTime.from_iso8601!(item["created_at"]),
+      "page_views_count" => item["page_views_count"],
+      "likes_count" => item["likes_count"],
+      "likes_rate" => item["likes_count"] / item["page_views_count"],
+      "stocks_count" => item["stocks_count"],
+      "stocks_rate" => item["stocks_count"] / item["page_views_count"],
+      "tags" => item["tags"] |> Enum.map(& &1["name"]) |> Enum.join(","),
+      "length" => item["body"] |> String.length()
+    }
+  end)
+  |> Explorer.DataFrame.new()
+  |> Explorer.DataFrame.select([
+    "title",
+    "private",
+    "created_at",
+    "page_views_count",
+    "likes_count",
+    "likes_rate",
+    "stocks_count",
+    "stocks_rate",
+    "tags",
+    "length"
+  ])
+
+Kino.DataTable.new(qiita_df)
+```
