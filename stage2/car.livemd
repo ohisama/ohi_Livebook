@@ -1,0 +1,112 @@
+# car
+
+```elixir
+Mix.install([
+  {:socket, "~> 0.3"},
+  {:jason, "~> 1.4"}
+])
+```
+
+## Section
+
+```elixir
+defmodule ElixirSocketTesting.ClientAgent do
+  def start_link do
+    Agent.start_link(
+      fn ->
+        []
+      end,
+      name: __MODULE__
+    )
+  end
+
+  def add(client) do
+    Agent.update(__MODULE__, fn list ->
+      [client | list]
+    end)
+  end
+
+  def remove(client) do
+    Agent.update(__MODULE__, fn list ->
+      List.delete(list, client)
+    end)
+  end
+
+  def all do
+    Agent.get(__MODULE__, fn list ->
+      list
+    end)
+  end
+end
+
+defmodule Car do
+  def agent(a) do
+    res = ""
+
+    v =
+      a
+      |> Jason.decode!()
+      |> Map.get("observation")
+      |> Map.get("s1")
+
+    v = String.to_float(v)
+
+    if v > 0.4 do
+      res = "{\"action\": 0}"
+    else
+      res = "{\"action\": 1}"
+    end
+  end
+end
+
+defmodule Car.Server do
+  alias ElixirSocketTesting.ClientAgent
+
+  def start(port \\ 50002) do
+    ClientAgent.start_link()
+    server = Socket.Web.listen!(port)
+    loop(server)
+  end
+
+  def loop(server) do
+    client =
+      server
+      |> Socket.Web.accept!()
+
+    client
+    |> Socket.Web.accept!()
+
+    ClientAgent.add(client)
+
+    Task.async(fn ->
+      recv(client)
+    end)
+
+    loop(server)
+  end
+
+  def recv(client) do
+    case client |> Socket.Web.recv!() do
+      {:text, message} ->
+        res = Car.agent(message)
+        broadcast({:text, res})
+        recv(client)
+
+      {:close, _, _} ->
+        ClientAgent.remove(client)
+
+      other ->
+        IO.inspect(other)
+    end
+  end
+
+  def broadcast(packet) do
+    ClientAgent.all()
+    |> Enum.each(fn client ->
+      Socket.Web.send(client, packet)
+    end)
+  end
+end
+
+Car.Server.start()
+```

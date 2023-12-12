@@ -1,0 +1,63 @@
+# tsv explorer
+
+```elixir
+Mix.install([
+  {:download, "~> 0.0.4"},
+  # {:req, "~> 0.3"},
+  # {:kino_vega_lite, "~> 0.1"},
+  {:kino_explorer, "~> 0.1.11"},
+  # {:kino_explorer, "~> 0.1"},
+  # {:explorer, "~> 0.7.1"},
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+unless File.exists?("balls-in-play-2022.tsv"),
+  do:
+    {:ok, _filename} =
+      Download.from(
+        "https://raw.githubusercontent.com/westbaystars/first-pitch-homeruns/main/balls-in-play-2022.tsv"
+      )
+
+df = Explorer.DataFrame.from_csv!("balls-in-play-2022.tsv", delimiter: "\t")
+```
+
+```elixir
+show_table = fn df ->
+  keys = Explorer.DataFrame.names(df)
+
+  df
+  |> Explorer.DataFrame.to_rows()
+  |> Kino.DataTable.new(keys: keys)
+end
+```
+
+```elixir
+df
+|> Explorer.DataFrame.rename(Result: "re")
+# |> Explorer.DataFrame.names
+|> Explorer.DataFrame.filter(re == "home-run")
+```
+
+```elixir
+unless File.exists?("time_series_covid19_confirmed_global.csv"),
+  do:
+    {:ok, _filename} =
+      Download.from(
+        "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
+      )
+
+df = Explorer.DataFrame.from_csv!("time_series_covid19_confirmed_global.csv", delimiter: ",")
+```
+
+```elixir
+df = Explorer.DataFrame.new(strs: ["a", "b", "c"], nums: [1, 2, 3])
+
+df
+|> Kino.DataTable.new()
+
+Explorer.DataFrame.filter(df, nums > 2)
+```

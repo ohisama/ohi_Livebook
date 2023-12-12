@@ -1,0 +1,251 @@
+# html kino
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+defmodule KinoHTML.Iframe do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    export function init(ctx, html) {
+    	const iframe = document.createElement("iframe");
+    	iframe.setAttribute("src", html);
+    	iframe.style.width = "100%";
+    	iframe.style.height = "500px";
+    	iframe.style.border = "0";
+    	ctx.root.appendChild(iframe);
+    }
+    """
+  end
+end
+
+KinoHTML.Iframe.new("https://www.youtube.com/embed/SEcxzrggdIo")
+```
+
+```elixir
+content =
+  "test desu"
+  |> then(fn content ->
+    File.write("test.txt", content)
+  end)
+```
+
+```elixir
+cat = File.read!("1.png")
+```
+
+```elixir
+content =
+  File.read!("a.bmp")
+  |> Kino.Image.new(:bmp)
+```
+
+```elixir
+defmodule Png do
+  @file_header <<0x89, "PNG", 0x0D, 0x0A, 0x1A, 0x0A>>
+  def generate(width, height, bitmap) do
+    bit_depth = 8
+    color_type = 2
+    compression_method = 0
+    filter_method = 0
+    interlace_method = 0
+
+    ihdr =
+      <<width::big-32, height::big-32, bit_depth, color_type, compression_method, filter_method,
+        interlace_method>>
+
+    data =
+      bitmap
+      |> Enum.chunk_every(width)
+      |> Enum.map(fn row ->
+        [filter_method, row]
+      end)
+
+    idat = zip(data)
+    [@file_header, chunk("IHDR", ihdr), chunk("IDAT", idat), chunk("IEND", "")]
+  end
+
+  defp chunk(type, data) do
+    length = IO.iodata_length(data)
+    crc = :erlang.crc32([type, data])
+    [<<length::big-32>>, type, data, <<crc::big-32>>]
+  end
+
+  defp zip(data) do
+    z = :zlib.open()
+    :ok = :zlib.deflateInit(z)
+    compressed = :zlib.deflate(z, data, :finish)
+    :ok = :zlib.deflateEnd(z)
+    :zlib.close(z)
+    compressed
+  end
+end
+
+width = 512
+height = 512
+
+bitmap =
+  for row <- 0..(height - 1), col <- 0..(width - 1) do
+    [min(row, 255), min(col, 255), min(min(511 - row, 511 - col), 255)]
+  end
+
+png = Png.generate(width, height, bitmap)
+IO.iodata_to_binary(png)
+```
+
+```elixir
+defmodule Bumper do
+  def show(filename) do
+    {:ok, bindata} = File.read(filename)
+
+    <<"BM", _::size(64), offset_to_pixels::size(32)-little, _::size(32), width::size(32)-little,
+      height::size(32)-little, _::size(16), 24::size(16)-little, _rest::binary>> = bindata
+
+    <<_::size(offset_to_pixels)-bytes, pixels::binary>> = bindata
+    IO.puts("Offset: #{offset_to_pixels} Width: #{width} Height: #{height}")
+    for <<b::size(8), g::size(8), r::size(8) <- pixels>>, do: {r, g, b}
+  end
+
+  def data(filename) do
+    {:ok, bindata} = File.read(filename)
+
+    <<"BM", _::size(64), offset_to_pixels::size(32)-little, _::size(32), width::size(32)-little,
+      height::size(32)-little, _::size(16), 24::size(16)-little, _rest::binary>> = bindata
+
+    <<_::size(offset_to_pixels)-bytes, pixels::binary>> = bindata
+
+    %{
+      data: pixels,
+      format: :rgb,
+      height: 141,
+      width: 150
+    }
+  end
+end
+
+Bumper.data("color.bmp")
+```
+
+```elixir
+defmodule Bmp do
+  def parse(filename) do
+    {:ok, bindata} = File.read(filename)
+
+    <<"BM", _::size(64), offset::size(32)-little, _::size(32), width::size(32)-little,
+      height::size(32)-little, _::size(16), 24::size(16)-little, _rest::binary>> = bindata
+
+    IO.puts("Offset: #{offset} Width: #{width} Height: #{height}")
+  end
+end
+
+Bmp.parse("color.bmp")
+```
+
+```elixir
+defmodule Pang do
+  def parse(filename) do
+    {:ok, bindata} = File.read(filename)
+
+    <<hader::size(64), length::big-size(32), type::big-size(32), width::big-size(32),
+      height::big-size(32), bit_depth::size(8), color_type::size(8), compression_method::size(8),
+      filter_method::size(8), interlace_method::size(8), data::binary>> = bindata
+
+    IO.puts("length: #{length} Width: #{width} Height: #{height}")
+  end
+end
+
+Pang.parse("1.png")
+```
+
+```elixir
+defmodule KinoHTML.Tchart do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    function draw(ctx, row, w) {
+      const WIDTH = 400;
+      const HEIGHT = 400;
+      const ROW_HEIGHT = 20;
+      const LOGIC_HEIGHT = 15;
+      const NAME_LEFT = 5;
+      const SIG_LEFT = 50;
+      const SIG_RIGHT = 380;
+      const SIG_WIDTH = (SIG_RIGHT - SIG_LEFT);
+      const TICK_START = 0;
+      const CLK_OFSET = 5;
+      const TICK_COUNT = 9;   
+      const TICK_WIDTH = SIG_WIDTH / TICK_COUNT;
+     const Y_BASE = ROW_HEIGHT * (row + 1);
+     ctx.fillStyle = "red";
+     ctx.fillText(row, NAME_LEFT, Y_BASE, SIG_LEFT);
+     ctx.fillStyle = "rgb(240, 240, 240)";
+     ctx.lineWidth = 1;
+     for (var i = 0; i < TICK_COUNT; i += 2)
+     {
+      var x = i * TICK_WIDTH + SIG_LEFT + CLK_OFSET;
+      var yh = Y_BASE - LOGIC_HEIGHT;
+      ctx.fillRect(x, yh, TICK_WIDTH, HEIGHT - 5 - yh);
+     }
+     ctx.moveTo(SIG_LEFT, Y_BASE);
+     ctx.lineTo(SIG_LEFT + CLK_OFSET, Y_BASE);
+     for (var i = 0; i < TICK_COUNT; i++)
+     {
+      var x = i * TICK_WIDTH + SIG_LEFT + CLK_OFSET;
+      if (w[i] == 0)
+      {
+       ctx.lineTo(x + TICK_WIDTH, Y_BASE);
+      }
+      else
+      {
+       if (w[i] != w[i - 1]) 
+        ctx.lineTo(x, Y_BASE - LOGIC_HEIGHT);
+       ctx.lineTo(x + TICK_WIDTH, Y_BASE - LOGIC_HEIGHT);
+       if (w[i] != w[i + 1]) 
+        ctx.lineTo(x + TICK_WIDTH, Y_BASE);
+      }
+     }
+     ctx.stroke();
+    }
+    export function init(ctx, html) {
+    	const canvas = document.createElement("canvas");
+      canvas.Width = 400;
+      canvas.Height = 400;
+    ctx.root.appendChild(canvas);
+      const ctx2 = canvas.getContext('2d');
+     ctx2.clearRect(0, 0, canvas.width, canvas.height);
+     ctx2.beginPath();
+     	var tim = JSON.parse(html);
+     draw(ctx2, 0, tim.s);
+     draw(ctx2, 1, tim.t);
+     draw(ctx2, 2, tim.u);
+     draw(ctx2, 3, tim.v);    	
+    }
+    """
+  end
+end
+
+KinoHTML.Tchart.new("""
+{
+  "s": [0, 1, 0, 1, 0, 0, 0, 1, 0], 
+  "t": [0, 0, 1, 1, 0, 1, 0, 0, 0], 
+  "u": [0, 1, 0, 1, 0, 0, 0, 1, 0], 
+  "v": [0, 0, 1, 1, 0, 1, 0, 0, 0]
+}
+""")
+```

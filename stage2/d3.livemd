@@ -1,0 +1,1017 @@
+# d3
+
+```elixir
+Mix.install([
+  {:httpoison, "~> 1.8"},
+  {:poison, "~> 5.0"},
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+defmodule AwesomeParser do
+  def parse_header_line(header) do
+    captures = Regex.named_captures(~r"^.*(?<hashes>#+) *(?<name>.*)$", String.strip(header))
+    %{level: String.length(captures["hashes"]), name: captures["name"]}
+  end
+
+  def parse_lines([_head | tail], %{level: level, next_level: next_level} = params)
+      when level < next_level do
+    parsed = parse_lines(tail, %{name: params[:next_name], level: next_level, items: []})
+
+    filtered =
+      Enum.filter(params[:items] ++ [parsed[:elem]], fn elem ->
+        length(Dict.get(elem, :children, [])) > 0
+      end)
+
+    parse_lines(Dict.get(parsed, :remained, tail), %{
+      name: params[:name],
+      level: level,
+      items: filtered
+    })
+  end
+
+  def parse_lines([head | tail], %{level: level, next_level: next_level} = params)
+      when level >= next_level do
+    %{elem: %{name: params[:name], children: params[:items]}, remained: [head | tail]}
+  end
+
+  def parse_lines([head | tail], params) do
+    cond do
+      String.starts_with?(head, "#") ->
+        %{level: next_level, name: next_name} = parse_header_line(head)
+
+        parse_lines(
+          [head | tail],
+          Dict.merge(params, %{next_level: next_level, next_name: next_name})
+        )
+
+      String.match?(head, ~r"^ *[\*\-].*\[.*\]\(http.*\).*$") ->
+        captures =
+          Regex.named_captures(
+            ~r"^ *[\*\-][^\[]*\[(?<label>[^\]]*)\]\((?<url>http[^\)]*)\)[^A-z]*(?<description>.*)$",
+            head
+          )
+
+        added_items =
+          params[:items] ++
+            [
+              %{
+                name: captures["label"],
+                url: captures["url"],
+                description: captures["description"],
+                size: 1
+              }
+            ]
+
+        parse_lines(tail, Dict.put(params, :items, added_items))
+
+      true ->
+        parse_lines(tail, params)
+    end
+  end
+
+  def parse_lines([], %{name: name, level: level, items: items}) do
+    cond do
+      level > 0 ->
+        %{elem: %{name: name, children: items}, remained: []}
+
+      true ->
+        %{name: name, children: items}
+    end
+  end
+
+  def process(repository_url) do
+    response = HTTPoison.get!(repository_url)
+
+    case response do
+      %{status_code: 200, body: body} ->
+        lines = String.split(body, "\n")
+        json = Poison.encode!(parse_lines(lines, %{name: "root", level: 0, items: []}))
+        {:ok, file} = File.open("output.json", [:write, :utf8])
+        IO.write(file, json)
+        File.close(file)
+
+      _ ->
+        IO.puts("An error occurred while reading repository: #{repository_url}")
+    end
+  end
+end
+
+AwesomeParser.process("https://raw.githubusercontent.com/h4cc/awesome-elixir/master/README.md")
+```
+
+```elixir
+defmodule KinoD3.Bar do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://d3js.org/d3.v5.min.js";
+    export function init(ctx, html) {
+    	ctx.importCSS("main.css")
+
+        
+    	const chartid = document.createElement("div");
+        chartid.id = "container";
+    	chartid.className = "svg-content";
+    	chartid.style.width = "400px";
+    	chartid.style.height = "400px";
+        chartid.style.backgroundColor = "red";
+    	ctx.root.appendChild(chartid);
+    	let data = [31, 42, 56, 92, 84, 72, 53, 43, 29, 24, 64, 49];
+        const barWidth = 75;
+        const barOffset = 10;
+        const height = 600;
+        const width = 800;
+
+        let yScale = d3.scaleLinear().domain([0, d3.max(data)]).range([0, height]);
+        d3.select('#container').append('svg')
+          .attr('width', width).attr('height', height).style('background', '#3A742C')
+          .selectAll('rect').data(data).enter()
+          .append('rect').style('fill', '#30A08B').attr('width', barWidth)
+          .attr('height', (d) => {
+              return yScale(d);
+          }).attr('x', (d, i) => {
+              return i * (barWidth + barOffset);
+          }).attr('y', (d) => {
+              return height - yScale(d);
+          });
+        
+    }
+    """
+  end
+
+  asset "main.css" do
+    """
+      .chart div {
+       font: 10px sans-serif;
+       background-color: steelblue;
+       text-align: right;
+       padding: 3px;
+       margin: 1px;
+       color: white;
+      }
+    """
+  end
+end
+
+KinoD3.Bar.new("")
+```
+
+```elixir
+Poison.encode!(%{"age" => 27, "name" => "Devin Torres"})
+|> IO.inspect()
+
+Poison.decode!(~s({"name": "Devin Torres", "age": 27}))
+|> IO.inspect()
+
+defmodule Person do
+  @derive [Poison.Encoder]
+  defstruct [:name, :age]
+end
+
+defmodule Main do
+  def main do
+    john = %Person{name: "Johe Ruith", age: 37}
+    IO.puts(john.name)
+    IO.puts(john.age)
+
+    Poison.encode!(%Person{name: "Devin Torres", age: 27})
+    |> IO.inspect()
+
+    Poison.decode!(~s({"name": "Devin Torres", "age": 27}), as: %Person{})
+    |> IO.inspect()
+
+    Poison.decode!(~s({"people": [{"name": "Devin Torres", "age": 27}]}),
+      as: %{"people" => [%Person{}]}
+    )
+    |> IO.inspect()
+  end
+end
+
+Main.main()
+```
+
+```elixir
+defmodule KinoD3.Table do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://d3js.org/d3.v5.min.js";
+    export function init(ctx, json) {
+    		const chartid = document.createElement("div");
+     	chartid.id = "out";
+      ctx.root.appendChild(chartid);
+      var blob = new Blob([json], {
+    	  type: "application/json"
+      });
+      var url = URL.createObjectURL(blob);
+      d3.json(url).then(function(data) {
+    	  d3.select('#out').append('div').selectAll().data(data).enter().append('div').text(function(dataRow) {
+    		  return dataRow['kanji'] + ' ' + dataRow['kana'] + ' ' + dataRow['color'];
+    	  });
+      }).catch(function(error) {
+    	  alert("ng")
+      });
+      }
+    """
+  end
+end
+
+KinoD3.Table.new("""
+[{
+	"kanji": "青",
+	"kana": "あお",
+	"color": "blue"
+}, {
+	"kanji": "赤",
+	"kana": "あか",
+	"color": "red"
+}, {
+	"kanji": "緑",
+	"kana": "みどり",
+	"color": "green"
+}]
+""")
+```
+
+```elixir
+defmodule KinoD3.Cluster do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://d3js.org/d3.v5.min.js";
+
+    function packageHierarchy(classes) {
+    var map = {};
+    function find(name, data) {
+    var node = map[name],
+    	i;
+    if (!node)
+    {
+    	node = map[name] = data || {name: name, children: []};
+    	if (name.length)
+    	{
+    		node.parent = find(name.substring(0, i = name.lastIndexOf(".")));
+    		node.parent.children.push(node);
+    		node.key = name.substring(i + 1);
+    	}
+    }
+    return node;
+    }
+    classes.forEach(function(d) {
+    find(d.name, d);
+    });
+    return d3.hierarchy(map[""]);
+    }
+    function packageImports(nodes) {
+    var map = {},
+    imports = [];
+    nodes.forEach(function(d) {
+    map[d.data.name] = d;
+    });
+    nodes.forEach(function(d) {
+    if (d.data.imports)
+    	d.data.imports.forEach(function(i) {
+    		imports.push(map[d.data.name].path(map[i]));
+    	});
+    });
+    return imports;
+    }
+
+    export function init(ctx, json) {
+
+    ctx.importCSS("main.css")
+
+    	const chartid = document.createElement("div");
+    	chartid.id = "out";
+    	ctx.root.appendChild(chartid);
+    	var blob = new Blob([json], {
+    		type: "application/json"
+    	});
+    	var url = URL.createObjectURL(blob);
+
+
+
+
+    var diameter = 960,
+    radius = diameter / 2,
+    innerRadius = radius - 120;
+    var cluster = d3.cluster().size([360, innerRadius]);
+    var line = d3.radialLine().curve(d3.curveBundle.beta(0.85))
+    .radius(function(d) {
+    return d.y;
+    }).angle(function(d) {
+    return d.x / 180 * Math.PI;
+    });
+    var svg = d3.select('#out').append("svg").attr("width", diameter)
+    .attr("height", diameter).append("g")
+    .attr("transform", "translate(" + radius + "," + radius + ")");
+    var link = svg.append("g").selectAll(".link"),
+    node = svg.append("g").selectAll(".node");
+
+
+
+
+    d3.json(url).then(function(data) {
+    var root = packageHierarchy(data).sum(function(d) {
+    return d.size;
+    });
+    cluster(root);	
+    link = link.data(packageImports(root.leaves())).enter().append("path")
+    .each(function(d) {
+    	d.source = d[0],
+    	d.target = d[d.length - 1];
+    }).attr("class", "link").attr("d", line);
+    node = node.data(root.leaves()).enter().append("text")
+    .attr("class", "node")
+    .attr("dy", "0.31em")
+    .attr("transform", function(d) {
+    	return "rotate(" + (d.x - 90) + ")translate(" + (d.y + 8) + ",0)" + (d.x < 180 ? "" : "rotate(180)");
+    }).attr("text-anchor", function(d) {
+    	return d.x < 180 ? "start" : "end";
+    }).text(function(d) {
+    	return d.data.key;
+    });			
+    }).catch(function(error) {
+    alert("ng")
+    });
+
+
+
+    }
+    """
+  end
+
+  asset "main.css" do
+    """
+
+    .node {
+    font: 10px sans-serif;
+    }
+
+    .link {
+    stroke: steelblue;
+    stroke-opacity: 0.5;
+    fill: none;
+    pointer-events: none;
+    }
+
+    """
+  end
+end
+
+KinoD3.Cluster.new("""
+[
+{"name":"flare.analytics.cluster.AgglomerativeCluster","size":3938,"imports":["flare.animate.Transitioner","flare.vis.data.DataList","flare.util.math.IMatrix","flare.analytics.cluster.MergeEdge","flare.analytics.cluster.HierarchicalCluster","flare.vis.data.Data"]},
+{"name":"flare.analytics.cluster.CommunityStructure","size":3812,"imports":["flare.analytics.cluster.HierarchicalCluster","flare.animate.Transitioner","flare.vis.data.DataList","flare.analytics.cluster.MergeEdge","flare.util.math.IMatrix"]},
+{"name":"flare.analytics.cluster.HierarchicalCluster","size":6714,"imports":["flare.vis.data.EdgeSprite","flare.vis.data.NodeSprite","flare.vis.data.DataList","flare.vis.data.Tree","flare.util.Arrays","flare.analytics.cluster.MergeEdge","flare.util.Sort","flare.vis.operator.Operator","flare.util.Property","flare.vis.data.Data"]},
+{"name":"flare.analytics.cluster.MergeEdge","size":743,"imports":[]},
+{"name":"flare.analytics.graph.BetweennessCentrality","size":3534,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.vis.data.DataList","flare.util.Arrays","flare.vis.data.Data","flare.util.Property","flare.vis.operator.Operator"]},
+{"name":"flare.analytics.graph.LinkDistance","size":5731,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.vis.data.EdgeSprite","flare.analytics.graph.ShortestPaths","flare.vis.data.Data","flare.util.Property","flare.vis.operator.Operator"]},
+{"name":"flare.analytics.graph.MaxFlowMinCut","size":7840,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.vis.data.EdgeSprite","flare.vis.data.Data","flare.util.Property","flare.vis.operator.Operator"]},
+{"name":"flare.analytics.graph.ShortestPaths","size":5914,"imports":["flare.vis.data.EdgeSprite","flare.vis.data.NodeSprite","flare.animate.Transitioner","flare.vis.operator.Operator","flare.util.heap.HeapNode","flare.util.heap.FibonacciHeap","flare.util.Property","flare.vis.data.Data"]},
+{"name":"flare.analytics.graph.SpanningTree","size":3416,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.vis.operator.IOperator","flare.vis.Visualization","flare.vis.data.TreeBuilder","flare.vis.operator.Operator"]},
+{"name":"flare.analytics.optimization.AspectRatioBanker","size":7074,"imports":["flare.animate.Transitioner","flare.util.Arrays","flare.vis.data.DataSprite","flare.scale.Scale","flare.vis.axis.CartesianAxes","flare.vis.Visualization","flare.util.Property","flare.vis.operator.Operator"]},
+{"name":"flare.animate.Easing","size":17010,"imports":["flare.animate.Transition"]},
+{"name":"flare.animate.FunctionSequence","size":5842,"imports":["flare.util.Maths","flare.animate.Transition","flare.util.Arrays","flare.animate.Sequence","flare.animate.Transitioner"]},
+{"name":"flare.animate.interpolate.ArrayInterpolator","size":1983,"imports":["flare.util.Arrays","flare.animate.interpolate.Interpolator"]},
+{"name":"flare.animate.interpolate.ColorInterpolator","size":2047,"imports":["flare.animate.interpolate.Interpolator"]},
+{"name":"flare.animate.interpolate.DateInterpolator","size":1375,"imports":["flare.animate.interpolate.Interpolator"]},
+{"name":"flare.animate.interpolate.Interpolator","size":8746,"imports":["flare.animate.interpolate.NumberInterpolator","flare.animate.interpolate.ColorInterpolator","flare.animate.interpolate.PointInterpolator","flare.animate.interpolate.ObjectInterpolator","flare.animate.interpolate.MatrixInterpolator","flare.animate.interpolate.RectangleInterpolator","flare.animate.interpolate.DateInterpolator","flare.util.Property","flare.animate.interpolate.ArrayInterpolator"]},
+{"name":"flare.animate.interpolate.MatrixInterpolator","size":2202,"imports":["flare.animate.interpolate.Interpolator"]},
+{"name":"flare.animate.interpolate.NumberInterpolator","size":1382,"imports":["flare.animate.interpolate.Interpolator"]},
+{"name":"flare.animate.interpolate.ObjectInterpolator","size":1629,"imports":["flare.animate.interpolate.Interpolator"]},
+{"name":"flare.animate.interpolate.PointInterpolator","size":1675,"imports":["flare.animate.interpolate.Interpolator"]},
+{"name":"flare.animate.interpolate.RectangleInterpolator","size":2042,"imports":["flare.animate.interpolate.Interpolator"]},
+{"name":"flare.animate.ISchedulable","size":1041,"imports":["flare.animate.Scheduler"]},
+{"name":"flare.animate.Parallel","size":5176,"imports":["flare.animate.Easing","flare.animate.Transition","flare.util.Arrays"]},
+{"name":"flare.animate.Pause","size":449,"imports":["flare.animate.Transition"]},
+{"name":"flare.animate.Scheduler","size":5593,"imports":["flare.animate.ISchedulable","flare.animate.Pause","flare.animate.Transition"]},
+{"name":"flare.animate.Sequence","size":5534,"imports":["flare.animate.Easing","flare.util.Maths","flare.animate.Transition","flare.util.Arrays"]},
+{"name":"flare.animate.Transition","size":9201,"imports":["flare.animate.Transitioner","flare.animate.TransitionEvent","flare.animate.Scheduler","flare.animate.Pause","flare.animate.Parallel","flare.animate.Easing","flare.animate.Sequence","flare.animate.ISchedulable","flare.util.Maths","flare.animate.Tween"]},
+{"name":"flare.animate.Transitioner","size":19975,"imports":["flare.util.IValueProxy","flare.animate.Parallel","flare.animate.Easing","flare.animate.Sequence","flare.animate.Transition","flare.animate.Tween","flare.util.Property"]},
+{"name":"flare.animate.TransitionEvent","size":1116,"imports":["flare.animate.Transition"]},
+{"name":"flare.animate.Tween","size":6006,"imports":["flare.animate.Transitioner","flare.animate.Transition","flare.animate.interpolate.Interpolator","flare.util.Property"]},
+{"name":"flare.data.converters.Converters","size":721,"imports":["flare.data.converters.IDataConverter","flare.data.converters.GraphMLConverter","flare.data.converters.JSONConverter","flare.data.converters.DelimitedTextConverter"]},
+{"name":"flare.data.converters.DelimitedTextConverter","size":4294,"imports":["flare.data.DataSet","flare.data.DataUtil","flare.data.DataTable","flare.data.converters.IDataConverter","flare.data.DataSchema","flare.data.DataField"]},
+{"name":"flare.data.converters.GraphMLConverter","size":9800,"imports":["flare.data.DataSet","flare.data.DataUtil","flare.data.DataTable","flare.data.converters.IDataConverter","flare.data.DataSchema","flare.data.DataField"]},
+{"name":"flare.data.converters.IDataConverter","size":1314,"imports":["flare.data.DataSet","flare.data.DataSchema"]},
+{"name":"flare.data.converters.JSONConverter","size":2220,"imports":["flare.data.DataSet","flare.data.DataUtil","flare.data.DataTable","flare.data.converters.IDataConverter","flare.data.DataSchema","flare.data.DataField","flare.util.Property"]},
+{"name":"flare.data.DataField","size":1759,"imports":["flare.data.DataUtil"]},
+{"name":"flare.data.DataSchema","size":2165,"imports":["flare.data.DataField","flare.util.Arrays"]},
+{"name":"flare.data.DataSet","size":586,"imports":["flare.data.DataTable"]},
+{"name":"flare.data.DataSource","size":3331,"imports":["flare.data.converters.IDataConverter","flare.data.converters.Converters","flare.data.DataSchema"]},
+{"name":"flare.data.DataTable","size":772,"imports":["flare.data.DataSchema"]},
+{"name":"flare.data.DataUtil","size":3322,"imports":["flare.data.DataField","flare.data.DataSchema"]},
+{"name":"flare.display.DirtySprite","size":8833,"imports":[]},
+{"name":"flare.display.LineSprite","size":1732,"imports":["flare.display.DirtySprite"]},
+{"name":"flare.display.RectSprite","size":3623,"imports":["flare.util.Colors","flare.display.DirtySprite"]},
+{"name":"flare.display.TextSprite","size":10066,"imports":["flare.display.DirtySprite"]},
+{"name":"flare.flex.FlareVis","size":4116,"imports":["flare.display.DirtySprite","flare.data.DataSet","flare.vis.Visualization","flare.vis.axis.CartesianAxes","flare.vis.axis.Axes","flare.vis.data.Data"]},
+{"name":"flare.physics.DragForce","size":1082,"imports":["flare.physics.Simulation","flare.physics.Particle","flare.physics.IForce"]},
+{"name":"flare.physics.GravityForce","size":1336,"imports":["flare.physics.Simulation","flare.physics.Particle","flare.physics.IForce"]},
+{"name":"flare.physics.IForce","size":319,"imports":["flare.physics.Simulation"]},
+{"name":"flare.physics.NBodyForce","size":10498,"imports":["flare.physics.Simulation","flare.physics.Particle","flare.physics.IForce"]},
+{"name":"flare.physics.Particle","size":2822,"imports":[]},
+{"name":"flare.physics.Simulation","size":9983,"imports":["flare.physics.Particle","flare.physics.NBodyForce","flare.physics.DragForce","flare.physics.GravityForce","flare.physics.Spring","flare.physics.SpringForce","flare.physics.IForce"]},
+{"name":"flare.physics.Spring","size":2213,"imports":["flare.physics.Particle"]},
+{"name":"flare.physics.SpringForce","size":1681,"imports":["flare.physics.Simulation","flare.physics.Particle","flare.physics.Spring","flare.physics.IForce"]},
+{"name":"flare.query.AggregateExpression","size":1616,"imports":["flare.query.Expression"]},
+{"name":"flare.query.And","size":1027,"imports":["flare.query.CompositeExpression","flare.query.Expression"]},
+{"name":"flare.query.Arithmetic","size":3891,"imports":["flare.query.BinaryExpression","flare.query.Expression"]},
+{"name":"flare.query.Average","size":891,"imports":["flare.query.Expression","flare.query.AggregateExpression"]},
+{"name":"flare.query.BinaryExpression","size":2893,"imports":["flare.query.Expression"]},
+{"name":"flare.query.Comparison","size":5103,"imports":["flare.query.Not","flare.query.BinaryExpression","flare.query.Expression","flare.query.Or"]},
+{"name":"flare.query.CompositeExpression","size":3677,"imports":["flare.query.Expression","flare.query.If"]},
+{"name":"flare.query.Count","size":781,"imports":["flare.query.Expression","flare.query.AggregateExpression"]},
+{"name":"flare.query.DateUtil","size":4141,"imports":["flare.query.Fn"]},
+{"name":"flare.query.Distinct","size":933,"imports":["flare.query.Expression","flare.query.AggregateExpression"]},
+{"name":"flare.query.Expression","size":5130,"imports":["flare.query.Variable","flare.query.IsA","flare.query.ExpressionIterator","flare.util.IPredicate","flare.query.Literal","flare.util.IEvaluable","flare.query.If"]},
+{"name":"flare.query.ExpressionIterator","size":3617,"imports":["flare.query.Expression"]},
+{"name":"flare.query.Fn","size":3240,"imports":["flare.query.DateUtil","flare.query.CompositeExpression","flare.query.Expression","flare.query.StringUtil"]},
+{"name":"flare.query.If","size":2732,"imports":["flare.query.Expression"]},
+{"name":"flare.query.IsA","size":2039,"imports":["flare.query.Expression","flare.query.If"]},
+{"name":"flare.query.Literal","size":1214,"imports":["flare.query.Expression"]},
+{"name":"flare.query.Match","size":3748,"imports":["flare.query.BinaryExpression","flare.query.Expression","flare.query.StringUtil"]},
+{"name":"flare.query.Maximum","size":843,"imports":["flare.query.Expression","flare.query.AggregateExpression"]},
+{"name":"flare.query.methods.add","size":593,"imports":["flare.query.methods.or","flare.query.Arithmetic"]},
+{"name":"flare.query.methods.and","size":330,"imports":["flare.query.And","flare.query.methods.or"]},
+{"name":"flare.query.methods.average","size":287,"imports":["flare.query.Average","flare.query.methods.or"]},
+{"name":"flare.query.methods.count","size":277,"imports":["flare.query.Count","flare.query.methods.or"]},
+{"name":"flare.query.methods.distinct","size":292,"imports":["flare.query.Distinct","flare.query.methods.or"]},
+{"name":"flare.query.methods.div","size":595,"imports":["flare.query.methods.or","flare.query.Arithmetic"]},
+{"name":"flare.query.methods.eq","size":594,"imports":["flare.query.Comparison","flare.query.methods.or"]},
+{"name":"flare.query.methods.fn","size":460,"imports":["flare.query.methods.or","flare.query.Fn"]},
+{"name":"flare.query.methods.gt","size":603,"imports":["flare.query.Comparison","flare.query.methods.or"]},
+{"name":"flare.query.methods.gte","size":625,"imports":["flare.query.Comparison","flare.query.methods.gt","flare.query.methods.eq","flare.query.methods.or"]},
+{"name":"flare.query.methods.iff","size":748,"imports":["flare.query.methods.or","flare.query.If"]},
+{"name":"flare.query.methods.isa","size":461,"imports":["flare.query.IsA","flare.query.methods.or"]},
+{"name":"flare.query.methods.lt","size":597,"imports":["flare.query.Comparison","flare.query.methods.or"]},
+{"name":"flare.query.methods.lte","size":619,"imports":["flare.query.Comparison","flare.query.methods.lt","flare.query.methods.eq","flare.query.methods.or"]},
+{"name":"flare.query.methods.max","size":283,"imports":["flare.query.Maximum","flare.query.methods.or"]},
+{"name":"flare.query.methods.min","size":283,"imports":["flare.query.Minimum","flare.query.methods.or"]},
+{"name":"flare.query.methods.mod","size":591,"imports":["flare.query.methods.or","flare.query.Arithmetic"]},
+{"name":"flare.query.methods.mul","size":603,"imports":["flare.query.methods.lt","flare.query.methods.or","flare.query.Arithmetic"]},
+{"name":"flare.query.methods.neq","size":599,"imports":["flare.query.Comparison","flare.query.methods.eq","flare.query.methods.or"]},
+{"name":"flare.query.methods.not","size":386,"imports":["flare.query.Not","flare.query.methods.or"]},
+{"name":"flare.query.methods.or","size":323,"imports":["flare.query.Or"]},
+{"name":"flare.query.methods.orderby","size":307,"imports":["flare.query.Query","flare.query.methods.or"]},
+{"name":"flare.query.methods.range","size":772,"imports":["flare.query.methods.max","flare.query.Range","flare.query.methods.or","flare.query.methods.min"]},
+{"name":"flare.query.methods.select","size":296,"imports":["flare.query.Query"]},
+{"name":"flare.query.methods.stddev","size":363,"imports":["flare.query.methods.and","flare.query.Variance","flare.query.methods.or"]},
+{"name":"flare.query.methods.sub","size":600,"imports":["flare.query.methods.or","flare.query.Arithmetic"]},
+{"name":"flare.query.methods.sum","size":280,"imports":["flare.query.Sum","flare.query.methods.or"]},
+{"name":"flare.query.methods.update","size":307,"imports":["flare.query.Query"]},
+{"name":"flare.query.methods.variance","size":335,"imports":["flare.query.Variance","flare.query.methods.or"]},
+{"name":"flare.query.methods.where","size":299,"imports":["flare.query.Query","flare.query.methods.lt","flare.query.methods.lte"]},
+{"name":"flare.query.methods.xor","size":354,"imports":["flare.query.Xor","flare.query.methods.or"]},
+{"name":"flare.query.methods._","size":264,"imports":["flare.query.Literal","flare.query.methods.or"]},
+{"name":"flare.query.Minimum","size":843,"imports":["flare.query.Expression","flare.query.AggregateExpression"]},
+{"name":"flare.query.Not","size":1554,"imports":["flare.query.Expression"]},
+{"name":"flare.query.Or","size":970,"imports":["flare.query.CompositeExpression","flare.query.Expression"]},
+{"name":"flare.query.Query","size":13896,"imports":["flare.query.Variable","flare.query.Sum","flare.query.Expression","flare.util.Sort","flare.query.Not","flare.query.AggregateExpression","flare.query.Literal","flare.util.Filter","flare.util.Property","flare.query.If"]},
+{"name":"flare.query.Range","size":1594,"imports":["flare.query.And","flare.query.Comparison","flare.query.Expression"]},
+{"name":"flare.query.StringUtil","size":4130,"imports":["flare.query.Fn"]},
+{"name":"flare.query.Sum","size":791,"imports":["flare.query.Expression","flare.query.AggregateExpression"]},
+{"name":"flare.query.Variable","size":1124,"imports":["flare.query.Expression","flare.util.Property"]},
+{"name":"flare.query.Variance","size":1876,"imports":["flare.query.Expression","flare.query.AggregateExpression"]},
+{"name":"flare.query.Xor","size":1101,"imports":["flare.query.CompositeExpression","flare.query.Expression"]},
+{"name":"flare.scale.IScaleMap","size":2105,"imports":["flare.scale.Scale"]},
+{"name":"flare.scale.LinearScale","size":1316,"imports":["flare.util.Maths","flare.util.Strings","flare.scale.Scale","flare.scale.QuantitativeScale","flare.scale.ScaleType"]},
+{"name":"flare.scale.LogScale","size":3151,"imports":["flare.util.Maths","flare.util.Strings","flare.scale.Scale","flare.scale.QuantitativeScale","flare.scale.ScaleType"]},
+{"name":"flare.scale.OrdinalScale","size":3770,"imports":["flare.scale.ScaleType","flare.util.Arrays","flare.scale.Scale"]},
+{"name":"flare.scale.QuantileScale","size":2435,"imports":["flare.util.Maths","flare.util.Strings","flare.scale.Scale","flare.scale.ScaleType"]},
+{"name":"flare.scale.QuantitativeScale","size":4839,"imports":["flare.util.Maths","flare.util.Strings","flare.scale.Scale"]},
+{"name":"flare.scale.RootScale","size":1756,"imports":["flare.util.Maths","flare.util.Strings","flare.scale.Scale","flare.scale.QuantitativeScale","flare.scale.ScaleType"]},
+{"name":"flare.scale.Scale","size":4268,"imports":["flare.scale.ScaleType","flare.util.Strings"]},
+{"name":"flare.scale.ScaleType","size":1821,"imports":["flare.scale.Scale"]},
+{"name":"flare.scale.TimeScale","size":5833,"imports":["flare.util.Maths","flare.util.Dates","flare.scale.Scale","flare.scale.ScaleType"]},
+{"name":"flare.util.Arrays","size":8258,"imports":["flare.util.IValueProxy","flare.util.Property","flare.util.IEvaluable"]},
+{"name":"flare.util.Colors","size":10001,"imports":["flare.util.Filter"]},
+{"name":"flare.util.Dates","size":8217,"imports":["flare.util.Maths"]},
+{"name":"flare.util.Displays","size":12555,"imports":["flare.util.IValueProxy","flare.util.Filter","flare.util.Property","flare.util.IEvaluable","flare.util.Sort"]},
+{"name":"flare.util.Filter","size":2324,"imports":["flare.util.IPredicate","flare.util.Property"]},
+{"name":"flare.util.Geometry","size":10993,"imports":[]},
+{"name":"flare.util.heap.FibonacciHeap","size":9354,"imports":["flare.util.heap.HeapNode"]},
+{"name":"flare.util.heap.HeapNode","size":1233,"imports":["flare.util.heap.FibonacciHeap"]},
+{"name":"flare.util.IEvaluable","size":335,"imports":[]},
+{"name":"flare.util.IPredicate","size":383,"imports":[]},
+{"name":"flare.util.IValueProxy","size":874,"imports":[]},
+{"name":"flare.util.math.DenseMatrix","size":3165,"imports":["flare.util.math.IMatrix"]},
+{"name":"flare.util.math.IMatrix","size":2815,"imports":[]},
+{"name":"flare.util.math.SparseMatrix","size":3366,"imports":["flare.util.math.IMatrix"]},
+{"name":"flare.util.Maths","size":17705,"imports":["flare.util.Arrays"]},
+{"name":"flare.util.Orientation","size":1486,"imports":[]},
+{"name":"flare.util.palette.ColorPalette","size":6367,"imports":["flare.util.palette.Palette","flare.util.Colors"]},
+{"name":"flare.util.palette.Palette","size":1229,"imports":[]},
+{"name":"flare.util.palette.ShapePalette","size":2059,"imports":["flare.util.palette.Palette","flare.util.Shapes"]},
+{"name":"flare.util.palette.SizePalette","size":2291,"imports":["flare.util.palette.Palette"]},
+{"name":"flare.util.Property","size":5559,"imports":["flare.util.IPredicate","flare.util.IValueProxy","flare.util.IEvaluable"]},
+{"name":"flare.util.Shapes","size":19118,"imports":["flare.util.Arrays"]},
+{"name":"flare.util.Sort","size":6887,"imports":["flare.util.Arrays","flare.util.Property"]},
+{"name":"flare.util.Stats","size":6557,"imports":["flare.util.Arrays","flare.util.Property"]},
+{"name":"flare.util.Strings","size":22026,"imports":["flare.util.Dates","flare.util.Property"]},
+{"name":"flare.vis.axis.Axes","size":1302,"imports":["flare.animate.Transitioner","flare.vis.Visualization"]},
+{"name":"flare.vis.axis.Axis","size":24593,"imports":["flare.animate.Transitioner","flare.scale.LinearScale","flare.util.Arrays","flare.scale.ScaleType","flare.util.Strings","flare.display.TextSprite","flare.scale.Scale","flare.util.Stats","flare.scale.IScaleMap","flare.vis.axis.AxisLabel","flare.vis.axis.AxisGridLine"]},
+{"name":"flare.vis.axis.AxisGridLine","size":652,"imports":["flare.vis.axis.Axis","flare.display.LineSprite"]},
+{"name":"flare.vis.axis.AxisLabel","size":636,"imports":["flare.vis.axis.Axis","flare.display.TextSprite"]},
+{"name":"flare.vis.axis.CartesianAxes","size":6703,"imports":["flare.animate.Transitioner","flare.display.RectSprite","flare.vis.axis.Axis","flare.display.TextSprite","flare.vis.axis.Axes","flare.vis.Visualization","flare.vis.axis.AxisGridLine"]},
+{"name":"flare.vis.controls.AnchorControl","size":2138,"imports":["flare.vis.controls.Control","flare.vis.Visualization","flare.vis.operator.layout.Layout"]},
+{"name":"flare.vis.controls.ClickControl","size":3824,"imports":["flare.vis.events.SelectionEvent","flare.vis.controls.Control"]},
+{"name":"flare.vis.controls.Control","size":1353,"imports":["flare.vis.controls.IControl","flare.util.Filter"]},
+{"name":"flare.vis.controls.ControlList","size":4665,"imports":["flare.vis.controls.IControl","flare.util.Arrays","flare.vis.Visualization","flare.vis.controls.Control"]},
+{"name":"flare.vis.controls.DragControl","size":2649,"imports":["flare.vis.controls.Control","flare.vis.data.DataSprite"]},
+{"name":"flare.vis.controls.ExpandControl","size":2832,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.vis.controls.Control","flare.vis.Visualization"]},
+{"name":"flare.vis.controls.HoverControl","size":4896,"imports":["flare.vis.events.SelectionEvent","flare.vis.controls.Control"]},
+{"name":"flare.vis.controls.IControl","size":763,"imports":["flare.vis.controls.Control"]},
+{"name":"flare.vis.controls.PanZoomControl","size":5222,"imports":["flare.util.Displays","flare.vis.controls.Control"]},
+{"name":"flare.vis.controls.SelectionControl","size":7862,"imports":["flare.vis.events.SelectionEvent","flare.vis.controls.Control"]},
+{"name":"flare.vis.controls.TooltipControl","size":8435,"imports":["flare.animate.Tween","flare.display.TextSprite","flare.vis.controls.Control","flare.vis.events.TooltipEvent"]},
+{"name":"flare.vis.data.Data","size":20544,"imports":["flare.vis.data.EdgeSprite","flare.vis.data.NodeSprite","flare.util.Arrays","flare.vis.data.DataSprite","flare.vis.data.Tree","flare.vis.events.DataEvent","flare.data.DataSet","flare.vis.data.TreeBuilder","flare.vis.data.DataList","flare.data.DataSchema","flare.util.Sort","flare.data.DataField","flare.util.Property"]},
+{"name":"flare.vis.data.DataList","size":19788,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.util.Arrays","flare.util.math.DenseMatrix","flare.vis.data.DataSprite","flare.vis.data.EdgeSprite","flare.vis.events.DataEvent","flare.util.Stats","flare.util.math.IMatrix","flare.util.Sort","flare.util.Filter","flare.util.Property","flare.util.IEvaluable","flare.vis.data.Data"]},
+{"name":"flare.vis.data.DataSprite","size":10349,"imports":["flare.util.Colors","flare.vis.data.Data","flare.display.DirtySprite","flare.vis.data.render.IRenderer","flare.vis.data.render.ShapeRenderer"]},
+{"name":"flare.vis.data.EdgeSprite","size":3301,"imports":["flare.vis.data.render.EdgeRenderer","flare.vis.data.DataSprite","flare.vis.data.NodeSprite","flare.vis.data.render.ArrowType","flare.vis.data.Data"]},
+{"name":"flare.vis.data.NodeSprite","size":19382,"imports":["flare.animate.Transitioner","flare.util.Arrays","flare.vis.data.DataSprite","flare.vis.data.EdgeSprite","flare.vis.data.Tree","flare.util.Sort","flare.util.Filter","flare.util.IEvaluable","flare.vis.data.Data"]},
+{"name":"flare.vis.data.render.ArrowType","size":698,"imports":[]},
+{"name":"flare.vis.data.render.EdgeRenderer","size":5569,"imports":["flare.vis.data.EdgeSprite","flare.vis.data.NodeSprite","flare.vis.data.DataSprite","flare.vis.data.render.IRenderer","flare.util.Shapes","flare.util.Geometry","flare.vis.data.render.ArrowType"]},
+{"name":"flare.vis.data.render.IRenderer","size":353,"imports":["flare.vis.data.DataSprite"]},
+{"name":"flare.vis.data.render.ShapeRenderer","size":2247,"imports":["flare.util.Shapes","flare.vis.data.render.IRenderer","flare.vis.data.DataSprite"]},
+{"name":"flare.vis.data.ScaleBinding","size":11275,"imports":["flare.scale.TimeScale","flare.scale.ScaleType","flare.scale.LinearScale","flare.scale.LogScale","flare.scale.OrdinalScale","flare.scale.RootScale","flare.scale.Scale","flare.scale.QuantileScale","flare.util.Stats","flare.scale.QuantitativeScale","flare.vis.events.DataEvent","flare.vis.data.Data"]},
+{"name":"flare.vis.data.Tree","size":7147,"imports":["flare.vis.data.EdgeSprite","flare.vis.events.DataEvent","flare.vis.data.NodeSprite","flare.vis.data.Data"]},
+{"name":"flare.vis.data.TreeBuilder","size":9930,"imports":["flare.vis.data.EdgeSprite","flare.vis.data.NodeSprite","flare.vis.data.Tree","flare.util.heap.HeapNode","flare.util.heap.FibonacciHeap","flare.util.Property","flare.util.IEvaluable","flare.vis.data.Data"]},
+{"name":"flare.vis.events.DataEvent","size":2313,"imports":["flare.vis.data.EdgeSprite","flare.vis.data.NodeSprite","flare.vis.data.DataList","flare.vis.data.DataSprite"]},
+{"name":"flare.vis.events.SelectionEvent","size":1880,"imports":["flare.vis.events.DataEvent"]},
+{"name":"flare.vis.events.TooltipEvent","size":1701,"imports":["flare.vis.data.EdgeSprite","flare.vis.data.NodeSprite"]},
+{"name":"flare.vis.events.VisualizationEvent","size":1117,"imports":["flare.animate.Transitioner"]},
+{"name":"flare.vis.legend.Legend","size":20859,"imports":["flare.animate.Transitioner","flare.vis.data.ScaleBinding","flare.util.palette.SizePalette","flare.scale.ScaleType","flare.vis.legend.LegendItem","flare.display.RectSprite","flare.display.TextSprite","flare.scale.Scale","flare.vis.legend.LegendRange","flare.util.Displays","flare.util.Orientation","flare.util.palette.ShapePalette","flare.util.palette.Palette","flare.util.palette.ColorPalette"]},
+{"name":"flare.vis.legend.LegendItem","size":4614,"imports":["flare.util.Shapes","flare.display.TextSprite","flare.vis.legend.Legend","flare.display.RectSprite"]},
+{"name":"flare.vis.legend.LegendRange","size":10530,"imports":["flare.util.Colors","flare.vis.legend.Legend","flare.display.RectSprite","flare.display.TextSprite","flare.scale.Scale","flare.util.Stats","flare.scale.IScaleMap","flare.util.Orientation","flare.util.palette.ColorPalette"]},
+{"name":"flare.vis.operator.distortion.BifocalDistortion","size":4461,"imports":["flare.vis.operator.distortion.Distortion"]},
+{"name":"flare.vis.operator.distortion.Distortion","size":6314,"imports":["flare.animate.Transitioner","flare.vis.data.DataSprite","flare.vis.events.VisualizationEvent","flare.vis.axis.Axis","flare.vis.axis.CartesianAxes","flare.vis.operator.layout.Layout","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.distortion.FisheyeDistortion","size":3444,"imports":["flare.vis.operator.distortion.Distortion"]},
+{"name":"flare.vis.operator.encoder.ColorEncoder","size":3179,"imports":["flare.animate.Transitioner","flare.scale.ScaleType","flare.vis.operator.encoder.Encoder","flare.util.palette.Palette","flare.util.palette.ColorPalette","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.encoder.Encoder","size":4060,"imports":["flare.animate.Transitioner","flare.vis.data.DataSprite","flare.vis.operator.Operator","flare.vis.data.ScaleBinding","flare.util.palette.Palette","flare.util.Filter","flare.util.Property","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.encoder.PropertyEncoder","size":4138,"imports":["flare.animate.Transitioner","flare.vis.data.DataList","flare.vis.data.Data","flare.vis.operator.encoder.Encoder","flare.util.Filter","flare.vis.operator.Operator"]},
+{"name":"flare.vis.operator.encoder.ShapeEncoder","size":1690,"imports":["flare.util.palette.Palette","flare.scale.ScaleType","flare.util.palette.ShapePalette","flare.vis.operator.encoder.Encoder","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.encoder.SizeEncoder","size":1830,"imports":["flare.util.palette.Palette","flare.scale.ScaleType","flare.vis.operator.encoder.Encoder","flare.util.palette.SizePalette","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.filter.FisheyeTreeFilter","size":5219,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.vis.data.DataSprite","flare.vis.data.EdgeSprite","flare.vis.data.Tree","flare.vis.operator.Operator","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.filter.GraphDistanceFilter","size":3165,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.vis.operator.Operator","flare.vis.data.DataSprite","flare.vis.data.EdgeSprite"]},
+{"name":"flare.vis.operator.filter.VisibilityFilter","size":3509,"imports":["flare.vis.operator.Operator","flare.animate.Transitioner","flare.util.Filter","flare.vis.data.DataSprite","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.IOperator","size":1286,"imports":["flare.animate.Transitioner","flare.vis.Visualization","flare.vis.operator.Operator"]},
+{"name":"flare.vis.operator.label.Labeler","size":9956,"imports":["flare.animate.Transitioner","flare.vis.data.DataSprite","flare.display.TextSprite","flare.vis.operator.Operator","flare.util.Shapes","flare.util.Filter","flare.util.Property","flare.util.IEvaluable","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.label.RadialLabeler","size":3899,"imports":["flare.vis.operator.label.Labeler","flare.util.Shapes","flare.display.TextSprite","flare.vis.data.DataSprite","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.label.StackedAreaLabeler","size":3202,"imports":["flare.vis.operator.label.Labeler","flare.display.TextSprite","flare.vis.data.DataSprite","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.layout.AxisLayout","size":6725,"imports":["flare.scale.ScaleType","flare.vis.data.DataSprite","flare.vis.axis.CartesianAxes","flare.vis.data.ScaleBinding","flare.util.Property","flare.vis.operator.layout.Layout","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.layout.BundledEdgeRouter","size":3727,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.util.Arrays","flare.vis.data.DataSprite","flare.vis.data.EdgeSprite","flare.util.Shapes","flare.vis.operator.layout.Layout","flare.vis.operator.Operator"]},
+{"name":"flare.vis.operator.layout.CircleLayout","size":9317,"imports":["flare.vis.data.NodeSprite","flare.vis.data.DataList","flare.vis.data.ScaleBinding","flare.util.Property","flare.vis.operator.layout.Layout","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.layout.CirclePackingLayout","size":12003,"imports":["flare.vis.data.NodeSprite","flare.vis.data.render.ShapeRenderer","flare.util.Shapes","flare.util.Sort","flare.vis.operator.layout.Layout","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.layout.DendrogramLayout","size":4853,"imports":["flare.util.Property","flare.vis.data.NodeSprite","flare.util.Orientation","flare.vis.operator.layout.Layout","flare.vis.data.EdgeSprite"]},
+{"name":"flare.vis.operator.layout.ForceDirectedLayout","size":8411,"imports":["flare.physics.Simulation","flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.vis.data.DataSprite","flare.physics.Particle","flare.physics.Spring","flare.vis.operator.layout.Layout","flare.vis.data.EdgeSprite","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.layout.IcicleTreeLayout","size":4864,"imports":["flare.vis.data.NodeSprite","flare.util.Orientation","flare.vis.operator.layout.Layout"]},
+{"name":"flare.vis.operator.layout.IndentedTreeLayout","size":3174,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.util.Arrays","flare.vis.operator.layout.Layout","flare.vis.data.EdgeSprite"]},
+{"name":"flare.vis.operator.layout.Layout","size":7881,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.vis.data.DataList","flare.vis.data.DataSprite","flare.vis.data.EdgeSprite","flare.vis.Visualization","flare.vis.axis.CartesianAxes","flare.vis.axis.Axes","flare.animate.TransitionEvent","flare.vis.operator.Operator"]},
+{"name":"flare.vis.operator.layout.NodeLinkTreeLayout","size":12870,"imports":["flare.vis.data.NodeSprite","flare.util.Arrays","flare.util.Orientation","flare.vis.operator.layout.Layout"]},
+{"name":"flare.vis.operator.layout.PieLayout","size":2728,"imports":["flare.vis.data.DataList","flare.vis.data.DataSprite","flare.util.Shapes","flare.util.Property","flare.vis.operator.layout.Layout","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.layout.RadialTreeLayout","size":12348,"imports":["flare.vis.data.NodeSprite","flare.util.Arrays","flare.vis.operator.layout.Layout"]},
+{"name":"flare.vis.operator.layout.RandomLayout","size":870,"imports":["flare.vis.operator.layout.Layout","flare.vis.data.DataSprite","flare.vis.data.Data"]},
+{"name":"flare.vis.operator.layout.StackedAreaLayout","size":9121,"imports":["flare.scale.TimeScale","flare.scale.LinearScale","flare.util.Arrays","flare.scale.OrdinalScale","flare.vis.data.NodeSprite","flare.scale.Scale","flare.vis.axis.CartesianAxes","flare.util.Stats","flare.util.Orientation","flare.scale.QuantitativeScale","flare.util.Maths","flare.vis.operator.layout.Layout"]},
+{"name":"flare.vis.operator.layout.TreeMapLayout","size":9191,"imports":["flare.animate.Transitioner","flare.vis.data.NodeSprite","flare.util.Property","flare.vis.operator.layout.Layout"]},
+{"name":"flare.vis.operator.Operator","size":2490,"imports":["flare.animate.Transitioner","flare.vis.operator.IOperator","flare.util.Property","flare.util.IEvaluable","flare.vis.Visualization"]},
+{"name":"flare.vis.operator.OperatorList","size":5248,"imports":["flare.animate.Transitioner","flare.util.Arrays","flare.vis.operator.IOperator","flare.vis.Visualization","flare.vis.operator.Operator"]},
+{"name":"flare.vis.operator.OperatorSequence","size":4190,"imports":["flare.animate.Transitioner","flare.util.Arrays","flare.vis.operator.IOperator","flare.vis.operator.OperatorList","flare.animate.FunctionSequence","flare.vis.operator.Operator"]},
+{"name":"flare.vis.operator.OperatorSwitch","size":2581,"imports":["flare.animate.Transitioner","flare.vis.operator.OperatorList","flare.vis.operator.IOperator","flare.vis.operator.Operator"]},
+{"name":"flare.vis.operator.SortOperator","size":2023,"imports":["flare.vis.operator.Operator","flare.animate.Transitioner","flare.util.Arrays","flare.vis.data.Data"]},
+{"name":"flare.vis.Visualization","size":16540,"imports":["flare.animate.Transitioner","flare.vis.operator.IOperator","flare.animate.Scheduler","flare.vis.events.VisualizationEvent","flare.vis.data.Tree","flare.vis.events.DataEvent","flare.vis.axis.Axes","flare.vis.axis.CartesianAxes","flare.util.Displays","flare.vis.operator.OperatorList","flare.vis.controls.ControlList","flare.animate.ISchedulable","flare.vis.data.Data"]}
+]
+""")
+```
+
+```elixir
+defmodule KinoD3.Force do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://d3js.org/d3.v5.min.js";
+    function process_network(nodesData, linksData) {
+    var svg = d3.select('#out').append("svg").attr("width", 1200)
+    .attr("height", 600).append("g")
+    .attr("transform", "translate(" + 1200 + "," + 600 + ")");
+    var link = svg.selectAll("line").data(linksData).enter().append("line")
+      .attr("stroke-width", 1).attr("stroke", "black");
+    var node = svg.selectAll("g").data(nodesData).enter().append("g")
+      .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+    node.append("circle").attr("r", 10).attr("stroke", "black").attr("stroke-width", 1.5)
+      .attr("fill", "peachpuff");
+    node.append("text").attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+      .style("fill", "gray").text(function(d) {
+      return d.id;
+    }).append("title").text(function(d) {
+      return d.id;
+    });
+    var simulation = d3.forceSimulation(nodesData).velocityDecay(0.3).alpha(0.7)
+      .force("link", d3.forceLink().distance(250))
+      .force("charge", d3.forceManyBody())
+      .force("center", d3.forceCenter(200, 200));
+    simulation.nodes(nodesData).on("tick", ticked);
+    simulation.force("link").links(linksData);
+    function ticked() {
+      link.attr("x1", function(d) {
+        return d.source.x;
+      }).attr("y1", function(d) {
+        return d.source.y;
+      }).attr("x2", function(d) {
+        return d.target.x;
+      }).attr("y2", function(d) {
+        return d.target.y;
+      });
+      node.select("circle").attr("cx", function(d) {
+        return d.x;
+      }).attr("cy", function(d) {
+        return d.y;
+      });
+      node.select("text").attr("dx", function(d) {
+        return d.x;
+      }).attr("dy", function(d) {
+        return d.y + 40;
+      });
+    }
+    function dragstarted(d) {
+      if (!d3.event.active) 
+        simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+    function dragged(d) {
+      d.fx = d3.event.x;
+      d.fy = d3.event.y;
+    }
+    function dragended(d) {
+      if (!d3.event.active) 
+        simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+    }
+    export function init(ctx, json) {
+    	const svgid = document.createElement("div");
+    	svgid.id = "out";
+    	ctx.root.appendChild(svgid);
+    	var blob = new Blob([json], {
+    		type: "text/csv"
+    	});
+    	var url = URL.createObjectURL(blob);
+        var no_regex = /No.([0-9]{1,3})/;      
+        d3.csv(url).then(function(data) {
+          //alert(datlength);
+         var node = [];
+         var link = [];
+         for (var i = 0; i < data.length; i++)
+         {
+          node.push({
+    	      id: data[i]['f'] + data[i]['e']
+          });
+          var o = no_regex.exec(data[i]['g']);
+          if (o)
+          {
+    	      link.push({
+    		      source: i, 
+    		      target: o[1]
+    	      });
+          }
+         }
+         process_network(node, link);
+        });
+    }
+    """
+  end
+end
+
+KinoD3.Force.new("""
+a,b,c,d,e,f,g,h
+1,1,1/15,30代,男,神奈川県,なし,38名特定、健康観察終了
+2,2,1/24,40代,男,中国（武漢市）,なし,32名特定、健康観察終了
+3,3,1/25,30代,女,中国（武漢市）,なし,７名特定、健康観察終了
+4,4,1/26,40代,男,中国（武漢市）,No.19,２名特定、健康観察終了
+5,5,1/28,40代,男,中国（武漢市）,なし,３名特定、健康観察終了
+6,6,1/28,60代,男,奈良県,No.８、No.13,22名特定、健康観察終了
+7,7,1/28,40代,女,中国（武漢市）,なし,２名特定、健康観察終了
+8,8,1/29,40代,女,大阪府,No.６,２名特定、健康観察終了
+9,10,1/30,50代,男,三重県,なし,３名特定、健康観察終了
+10,11,1/30,30代,女,中国（湖南省）,なし,４名特定、健康観察終了
+11,12,1/30,20代,女,京都府,なし,なし
+12,13,1/31,20代,女,千葉県,No.６,１名特定、健康観察終了
+13,17,2/4,30代,女,中国（武漢市）,No.20,６名特定、健康観察終了
+14,19,2/4,50代,男,中国（湖北省）,No.４,調査中
+15,20,2/5,40代,男,中国（武漢市）,No.17,６名特定、健康観察終了
+16,21,2/5,20代,男,京都府,調査中,１名特定、健康観察終了
+17,26,2/11,50代,男,神奈川県,調査中,調査中
+18,27,2/13,80代,女,神奈川県,No.28、No.48,４名特定、健康観察実施中
+19,28,2/13,70代,男,東京都,調査中,１名特定、健康観察実施中
+20,29,2/13,50代,男,和歌山県,No.31,調査中
+21,30,2/13,20代,男,千葉県,調査中,51名特定、健康観察実施中
+22,31,2/14,70代,男,和歌山,No.29、No.54,16名特定、健康観察実施中
+23,32,2/14,60代,女,沖縄県,なし,16名特定、健康観察実施中
+24,33,2/14,50代,女,東京都,No.28,調査中
+25,34,2/14,70代,男,東京都,No.28,調査中
+26,35,2/14,60代,男,愛知県,調査中,３名特定、健康観察実施中
+27,36,2/14,50代,男,北海道,なし,45名特定、健康観察実施中
+28,37,2/14,30代,男,神奈川県,調査中,６名特定、健康観察実施中
+29,38,2/14,50代,男,和歌山県,No.20,調査中
+30,39,2/14,50代,女,和歌山県,No.29,調査中
+31,40,2/15,60代,男,和歌山県,No.29、No.50、No.51,調査中
+32,41,2/15,40代,男,東京都,No.45,調査中
+33,42,2/15,60代,女,東京都,No.28,調査中
+34,43,2/15,60代,女,愛知県,No.35、No.44、No.69、No.77,２名特定、健康観察実施中
+35,44,2/16,60代,男,愛知県,No.43、No.53、No.59,７名特定、健康観察実施中
+36,45,2/16,30代,男,東京都,No.41,14名特定、健康観察実施中
+37,46,2/16,60代,男,調査中,なし,調査中
+38,47,2/16,60代,男,調査中,No.28,調査中
+39,48,2/17,40代,女,神奈川,No.27,４名特定、健康観察実施中
+40,49,2/17,50代,男,東京都,調査中,調査中
+41,50,2/17,80代,女,和歌山県,No.40,調査中
+42,51,2/17,50代,男,和歌山県,No.40,調査中
+43,52,2/17,50代,男,和歌山県,調査中,調査中
+44,53,2/17,60代,男,愛知県,No.44、No.59,３名特定、健康観察実施中
+45,54,2/18,60代,男,和歌山県,No.22,調査中
+46,55,2/18,30代,男,和歌山県,調査中,調査中
+47,56,2/18,80代,男,東京都,なし,調査中
+48,57,2/18,20代,男,東京都,調査中,調査中
+49,58,2/18,50代,男,東京都,調査中,調査中
+50,59,2/18,60代,男,愛知県,No.44、No.53,３名特定、健康観察実施中
+51,60,2/18,80代,男,神奈川県,No.27、No.61、No.78,２名特定、健康観察実施中
+52,61,2/18,70代,男,神奈川県,No.60、No.78,６名特定、健康観察実施中
+53,62,2/19,60代,男,神奈川県,調査中,２名特定、健康観察実施中
+54,63,2/19,40代,男,北海道,No.72,26名特定、健康観察実施中
+55,64,2/19,60代,男,北海道,No.101,69名特定、健康観察実施中
+56,65,2/19,60代,男,沖縄県,不明,調査中
+57,66,2/19,70代,男,東京都,No.67,調査中
+58,67,2/19,70代,女,東京都,No.66,調査中
+59,68,2/19,70代,女,東京都,調査中,調査中
+60,69,2/19,50代,女,愛知県,No.43、No.77,４名特定、健康観察実施中
+61,71,2/20,60代,男,福岡県,No.79,１名特定、健康観察実終了
+62,72,2/20,40代,男,北海道,No.63,調査中
+63,73,2/20,70代,女,千葉県,調査中,調査中
+64,74,2/20,80代,男,沖縄県,調査中,調査中
+65,75,2/20,40代,男,東京都,調査中,調査中
+66,76,2/20,30代,男,埼玉県,調査中,調査中
+67,77,2/20,80代,男,愛知県,No.43、No.69、No.167,３名特定、健康観察実施中
+68,78,2/20,80代,男,神奈川県,No.60、No.61,調査中
+69,79,2/20,60代,女,福岡県,No.71,１名特定、健康観察終了
+70,80,2/21,10歳未満,男,北海道,No.81,調査中
+71,81,2/21,10代,男,北海道,No.80,調査中
+72,82,2/21,40代,女,北海道,調査中,38名特定、健康観察実施中
+73,83,2/21,50代,男,石川県,不明,13名特定、健康観察実施中
+74,85,2/21,50代,女,東京都,調査中,調査中
+75,86,2/21,70代,女,東京都,調査中,調査中
+76,87,2/21,50代,女,東京都,調査中,調査中
+77,88,2/21,60代,男,千葉県,なし,調査中
+78,89,2/21,80代,男,神奈川県,調査中,４名特定、健康観察実施中
+79,90,2/21,70代,男,愛知県,No.43,１名特定、健康観察実施中
+80,91,2/21,20代,女,愛知県,No.69,10名特定、健康観察実施中
+81,92,2/22,20代,女,熊本県,No.93、No.142,11名特定、健康観察実施中
+82,93,2/22,50代,男,熊本県,No.92、No.141、No.142,16名特定、健康観察実施中
+83,94,2/21,60代,男,熊本県,なし,なし
+84,95,2/22,40代,男,和歌山県,No.40,調査中
+85,96,2/21,60代,女,千葉県,なし,調査中
+86,97,2/22,50代,女,千葉県,なし,調査中
+87,98,2/22,70代,女,北海道,調査中,調査中
+88,99,2/22,80代,男,北海道,No.177、No.188,調査中
+89,100,2/22,70代,男,北海道,調査中,調査中
+90,101,2/22,50代,女,北海道,No.64,調査中
+91,102,2/22,60代,男,北海道,調査中,調査中
+92,103,2/22,50代,女,北海道,調査中,23名特定、健康観察実施中
+93,104,2/22,10代,女,北海道,調査中,調査中
+94,105,2/22,50代,女,北海道,調査中,調査中
+95,106,2/22,60代,男,東京都,調査中,調査中
+96,107,2/22,60代,女,愛知県,No.43,１名特定、健康観察実施中
+97,108,2/22,40代,女,愛知県,No.43,なし
+98,109,2/22,60代,男,愛知県,No.69,２名特定、健康観察実施中
+99,110,2/22,60代,男,愛知県,No.69,６名特定、健康観察実施中
+100,111,2/22,60代,女,栃木県,クルーズ船、下船後に発症,1名特定、健康観察実施中
+101,112,2/22,50代,男,神奈川県,No.137、No.138、No.139、No.158,調査中
+102,113,2/22,50代,男,北海道,No.177,調査中
+103,114,2/22,70代,男,北海道,なし,調査中
+104,115,2/23,70代,女,愛知県,No.43,調査中
+105,116,2/23,70代,男,愛知県,No.43,調査中
+106,117,2/23,40代,男,千葉県,なし,調査中
+107,118,2/23,30代,男,北海道,調査中,調査中
+108,119,2/23,60代,女,北海道,No.100,調査中
+109,120,2/23,20代,男,北海道,調査中,調査中
+110,121,2/23,70代,男,北海道,調査中,調査中
+111,122,2/23,30代,女,北海道,調査中,20名特定、健康観察実施中
+112,123,2/23,80代,男,北海道,No.98,調査中
+113,124,2/23,40代,女,北海道,No.104,調査中
+114,125,2/23,20代,女,北海道,調査中,調査中
+115,126,2/24,40代,男,東京都,調査中,調査中
+116,127,2/24,50代,男,東京都,調査中,調査中
+117,128,2/24,60代,男,石川県,調査中,８名特定、健康観察実施中
+118,129,2/24,70代,女,北海道,No.114,調査中
+119,130,2/24,50代,男,北海道,No.174、No.175、No.177,調査中
+120,131,2/24,20代,女,北海道,No.113,調査中
+121,132,2/24,50代,男,北海道,調査中,調査中
+122,133,2/24,50代,男,神奈川県,調査中,調査中
+123,134,2/24,40代,男,東京都,調査中,調査中
+124,135,2/24,50代,男,東京都,調査中,調査中
+125,136,2/24,30代,男,東京都,調査中,調査中
+126,137,2/22,50代,女,神奈川県,No.112,調査中
+127,138,2/22,20代,女,神奈川県,No.112,調査中
+128,139,2/22,20代,女,神奈川県,No.112,調査中
+129,140,2/25,60代,男,長野県,調査中,調査中
+130,141,2/25,50代,男,熊本県,No.93,９名特定、健康観察実施中
+131,142,2/25,60代,女,熊本県,No.92、No.93,なし
+132,143,2/25,60代,女,北海道,不明,調査中
+133,144,2/25,50代,女,石川県,No.83,８名特定、健康観察実施中
+134,145,2/25,70代,女,愛知県,No.43,調査中
+135,146,2/25,70代,女,愛知県,No.43,調査中
+136,147,2/25,40代,女,愛知県,No.69,調査中
+137,148,2/25,60代,男,千葉県,クルーズ船、下船後に発症,１名特定、健康観察実施中
+138,149,2/25,50代,男,千葉県,調査中,調査中
+139,150,2/25,70代,男,千葉県,クルーズ船、下船後に発症,調査中
+140,151,2/25,20代,男,北海道,No.177,調査中
+141,152,2/25,20代,女,北海道,調査中,調査中
+142,153,2/25,70代,男,北海道,調査中,調査中
+143,154,2/25,確認中,確認中,北海道,調査中,調査中
+144,155,2/26,70代,女,北海道,調査中,調査中
+145,156,2/25,70代,女,北海道,調査中,調査中
+146,157,2/26,40代,男,大阪府,なし,調査中
+147,158,2/26,60代,男,神奈川県,No.112,調査中
+148,159,2/26,40代,女,大阪府,No.８と、同一人物,調査中
+149,160,調査中,80代,男,東京都,No.161,調査中
+150,161,調査中,70代,男,東京都,No.160,調査中
+151,162,調査中,70代,男,東京都,調査中,調査中
+152,163,2/26,50代,男,愛知県,No.69,調査中
+153,164,2/26,60代,男,愛知県,No.69,調査中
+154,165,2/26,70代,男,愛知県,No.69,調査中
+155,166,2/26,70代,男,愛知県,調査中,調査中
+156,167,2/26,70代,女,愛知県,No.77,調査中
+157,168,2/27,50代,男,岐阜県,No.169,９名特定、健康観察実施中
+158,169,2/27,50代,女,大阪府,No.168,１名特定、健康観察実施中
+159,170,2/27,50代,男,滋賀県,調査中,42名特定、健康観察実施中
+160,171,2/27,50代,男,神奈川県,調査中,調査中
+161,172,2/27,60代,女,千葉県,調査中,調査中
+162,173,2/27,40代,男,大阪府,調査中,調査中
+163,174,2/27,50代,男,北海道,No.130、No.177,調査中
+164,175,2/27,50代,男,北海道,No.130、No.177,調査中
+165,176,2/27,30代,男,北海道,調査中,調査中
+166,177,2/27,70代,男,北海道,No.99、No.113、No.130、No.151、No.174、No.175,調査中
+167,178,2/27,60代,男,北海道,調査中,調査中
+168,179,2/27,40代,男,北海道,調査中,調査中
+169,180,2/27,40代,男,北海道,調査中,調査中
+170,181,2/27,10歳未満,男,北海道,調査中,調査中
+171,182,2/27,30代,男,北海道,調査中,調査中
+172,183,2/27,10歳未満,男,北海道,調査中,調査中
+173,184,2/27,80代,男,北海道,調査中,調査中
+174,185,2/27,30代,男,北海道,調査中,調査中
+175,186,2/27,80代,男,北海道,調査中,調査中
+176,187,2/27,60代,男,北海道,調査中,調査中
+177,188,2/27,40代,女,北海道,No.99,調査中
+178,189,2/27,60代,女,愛知県,調査中,調査中
+179,190,2/27,60代,男,愛知県,調査中,調査中
+180,191,2/27,50代,男,神奈川県,調査中,調査中
+181,192,2/28,40代,女,神奈川県,調査中,調査中
+182,193,2/28,20代,男,神奈川県,調査中,調査中
+183,194,2/28,60代,男,静岡県,クルーズ船下船後に発症,１名特定、健康観察実施中
+184,195,2/28,80代,女,北海道,調査中,調査中
+185,196,2/28,10代未満,女,北海道,調査中,調査中
+186,197,2/28,80代,男,北海道,調査中,調査中
+187,198,2/28,60代,女,北海道,調査中,調査中
+188,199,2/28,60代,男,北海道,No.100,調査中
+189,200,2/28,60代,男,北海道,調査中,調査中
+190,201,2/28,60代,女,北海道,調査中,調査中
+191,202,2/28,40代,男,北海道,調査中,調査中
+192,203,2/28,70代,男,北海道,調査中,調査中
+193,204,2/28,60代,女,北海道,調査中,調査中
+194,205,2/28,60代,男,北海道,調査中,調査中
+195,206,2/28,60代,男,北海道,調査中,調査中
+196,207,2/28,60代,男,愛知県,No.189,調査中
+197,208,2/28,40代,女,大阪市,No.173,87名特定、健康観察中
+198,209,2/28,30代,女,高知県,ライブハウス,16名特定、健康観察実施中
+199,210,2/29,60代,男,新潟県,卓球スクール,54名特定、健康観察中
+200,211,2/29,70代,男,宮城県,クルーズ船下船後に発症,１名特定、健康観察実施中
+201,212,2/29,20代,女,東京都,No.56,調査中
+202,213,2/29,90代,女,北海道,調査中,調査中
+203,214,2/29,60代,女,北海道,調査中,調査中
+204,215,2/29,30代,女,北海道,調査中,調査中
+205,216,2/29,20代,女,北海道,調査中,調査中
+206,217,2/29,70代,女,愛知県,調査中,調査中
+207,218,3/1,60代,男,福岡県,調査中,調査中
+208,219,3/1,70代,女,神奈川県,No.231、No.232,調査中
+209,220,3/1,50代,女,神奈川県,No.230、No.232,調査中
+210,221,3/1,20代,男,千葉県,No.230、No.231,調査中
+211,222,3/1,20代,女,北海道,調査中,調査中
+212,223,3/1,40代,女,北海道,展示会,調査中
+213,224,3/1,50代,女,東京都,スポーツジム,調査中
+214,225,3/1,70代,女,東京都,No.56,調査中
+215,226,3/1,50代,男,神奈川県,No.227,調査中
+216,227,3/1,50代,女,神奈川県,No.226,調査中
+217,228,3/1,調査中,調査中,高知県,No.209,調査中
+218,229,3/1,調査中,調査中,愛知県,No.217,調査中
+219,230,3/1,調査中,調査中,愛知県,No.217,調査中
+220,231,3/1,調査中,調査中,愛知県,調査中,調査中
+221,232,3/1,40代,男,兵庫県,調査中,調査中
+222,233,3/2,30代,女,高知県,No.209,調査中
+223,234,3/2,40代,男,新潟県,卓球スクール,調査中
+224,235,3/2,60代,男,北海道,調査中,調査中
+225,236,3/2,60代,男,北海道,調査中,調査中
+226,237,3/2,50代,男,北海道,調査中,調査中
+227,238,3/2,40代,女,北海道,調査中,調査中
+228,239,3/2,50代,男,北海道,調査中,調査中
+229,240,3/2,50代,男,大阪府,No.157,調査中
+230,241,3/2,40代,女,大阪府,No.240,調査中
+231,242,3/3,30代,女,大分県,調査中,調査中
+232,243,3/3,40代,男,兵庫県,調査中,調査中
+233,244,3/3,30代,女,北海道,No.216,調査中
+234,245,3/3,60代,女,北海道,No.216,調査中
+235,246,3/3,60代,女,新潟県,卓球スクール,調査中
+236,247,3/3,50代,女,新潟県,卓球スクール,調査中
+237,248,3/3,40代,男,新潟県,卓球スクール,調査中
+238,249,3/3,50代,女,京都府,ライブハウス,調査中
+239,250,3/3,50代,女,東京都,調査中,調査中
+240,251,3/3,50代,男,大阪府,調査中,調査中
+241,252,3/3,40代,女,大阪府,ライブハウス,調査中
+242,253,3/3,70代,女,愛知県,No.254,調査中
+243,254,3/3,80代,男,愛知県,No.253,調査中
+244,255,3/3,20代,女,愛知県,調査中,調査中
+245,256,3/3,70代,男,愛知県,調査中,調査中
+246,257,3/3,40代,女,兵庫県,ライブハウス,調査中
+247,258,3/3,40代,男,山口県,調査中,調査中
+248,259,3/4,40代,女,高知県,No.209,14名特定、健康観察中
+249,260,3/4,60代,男,高知県,No.233,調査中
+250,261,3/4,60代,女,高知県,No.233,調査中
+251,262,3/4,10歳未満,男,高知県,No.233,16名特定、健康観察中
+252,263,3/4,305,女,愛媛県,調査中,26名特定、健康観察中
+253,264,3/4,70代,男,宮崎県,調査中,調査中
+254,265,3/4,40代,男,北海道,調査中,調査中
+255,266,3/4,60代,男,北海道,調査中,調査中
+256,267,3/4,40代,男,北海道,調査中,調査中
+257,268,3/4,80代,女,東京都,調査中,調査中
+258,269,3/4,30代,女,東京都,ライブハウス,調査中
+259,270,3/4,50代,男,東京都,調査中,調査中
+260,271,3/4,40代,女,東京都,ライブハウス,調査中
+261,272,3/4,80代,女,千葉県,No.224,調査中
+262,273,3/4,60代,女,愛知県,No.164,調査中
+263,274,3/4,50代,男,愛知県,No.217、No.230,調査中
+264,275,3/4,70代,女,愛知県,No.229,調査中
+265,276,3/4,80代,男,愛知県,No.229,調査中
+266,277,3/4,80代,男,愛知県,No.230,調査中
+267,278,3/4,80代,男,愛知県,No.230,調査中
+268,279,3/4,50代,女,京都府,ライブハウス,調査中
+269,280,3/4,50代,男,京都府,調査中,調査中
+270,281,3/4,30代,女,大阪府,ライブハウス,調査中
+271,282,3/4,30代,男,大阪府,ライブハウス,調査中
+272,283,3/4,60代,女,大阪府,ライブハウス,調査中
+273,284,3/4,50代,女,大阪府,No.251,調査中
+274,285,3/4,50代,男,大阪府,調査中,調査中
+275,286,3/4,30代,女,大阪府,調査中,調査中
+276,287,3/4,70代,男,大阪府,調査中,調査中
+277,288,3/5,60代,男,滋賀県,調査中,調査中
+278,289,3/5,30代,男,京都府,調査中,調査中
+279,290,3/4,60代,男,北海道,調査中,調査中
+280,291,3/5,50代,女,神奈川県,調査中,調査中
+281,292,3/5,50代,男,神奈川県,調査中,調査中
+282,293,3/5,60代,男,埼玉県,調査中,調査中
+283,294,3/5,50代,男,埼玉県,調査中,調査中
+284,295,3/5,10歳未満,女,東京都,No.250,調査中
+285,296,3/5,10歳未満,男,東京都,No.250,調査中
+286,297,3/5,30代,女,東京都,No.250,調査中
+287,298,3/5,20代,女,東京都,調査中,調査中
+288,299,3/5,70代,女,東京都,No.168,調査中
+289,300,3/5,90代,男,東京都,調査中,調査中
+290,301,3/5,70代,男,東京都,調査中,調査中
+291,302,3/5,80代,男,東京都,調査中,調査中
+292,303,3/5,20代,女,和歌山県,ライブハウス,調査中
+293,304,3/5,30代,男,愛知県,調査中,調査中
+294,305,3/5,50代,男,愛知県,調査中,調査中
+295,306,3/5,40代,女,愛知県,No.43,調査中
+296,307,3/5,60代,男,愛知県,No.69,調査中
+297,308,3/5,60代,女,愛知県,No.217,調査中
+298,309,3/5,40代,女,愛知県,調査中,調査中
+299,310,3/5,80代,女,愛知県,調査中,調査中
+300,311,3/5,80代,男,愛知県,調査中,調査中
+301,312,3/5,50代,女,愛知県,調査中,調査中
+302,313,3/5,30代,女,栃木県,ライブハウス,調査中
+""")
+```

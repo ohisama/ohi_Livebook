@@ -1,0 +1,151 @@
+# kino
+
+```elixir
+Mix.install([{:kino, "~> 0.10.0"}])
+```
+
+## Section
+
+```elixir
+frame = Kino.Frame.new()
+```
+
+```elixir
+inputs = [name: Kino.Input.text("Name"), message: Kino.Input.text("Message")]
+form = Kino.Control.form(inputs, submit: "Send", reset_on_submit: [:message])
+```
+
+```elixir
+Kino.listen(form, fn %{data: %{name: name, message: message}, origin: origin} ->
+  if name != "" and message != "" do
+    content = Kino.Markdown.new("**#{name}**: #{message}")
+    Kino.Frame.append(frame, content)
+  else
+    content = Kino.Markdown.new("_ERROR! You need a name and message to submit..._")
+    Kino.Frame.append(frame, content, to: origin)
+  end
+end)
+```
+
+```elixir
+frame2 = Kino.Frame.new()
+```
+
+```elixir
+inputs2 = [te: Kino.Input.text("Anata")]
+form2 = Kino.Control.form(inputs2, submit: "Send", reset_on_submit: [:te])
+```
+
+```elixir
+defmodule Janken do
+  def hand(c) do
+    cond do
+      c == 0 ->
+        "グー"
+
+      c == 1 ->
+        "チョキ"
+
+      c == 2 ->
+        "パー"
+
+      :else ->
+        "うそ"
+    end
+  end
+
+  def judge(a, b) do
+    cond do
+      a == b ->
+        "あいこ"
+
+      a == 0 && b == 1 ->
+        "あなたの勝ち"
+
+      a == 1 && b == 2 ->
+        "あなたの勝ち"
+
+      a == 2 && b == 0 ->
+        "あなたの勝ち"
+
+      a == 0 && b == 2 ->
+        "あなたの負け"
+
+      a == 1 && b == 0 ->
+        "あなたの負け"
+
+      a == 2 && b == 1 ->
+        "あなたの負け"
+    end
+  end
+
+  def pon(a) do
+    res = ""
+
+    {a, _} =
+      a
+      |> Integer.parse()
+
+    res = res <> hand(a) <> "と"
+
+    b =
+      0..2
+      |> Enum.random()
+
+    res = res <> hand(b) <> "で、"
+    res = res <> judge(a, b)
+    res
+  end
+end
+
+Kino.listen(form2, fn %{data: %{te: te}, origin: origin} ->
+  res = Janken.pon(te)
+  content = Kino.Markdown.new(res)
+  Kino.Frame.append(frame2, content)
+end)
+```
+
+```elixir
+button0 = Kino.Control.button("gu")
+```
+
+```elixir
+button1 = Kino.Control.button("choki")
+```
+
+```elixir
+button2 = Kino.Control.button("par")
+```
+
+```elixir
+Kino.Control.subscribe(button0, :gu)
+Kino.Control.subscribe(button1, :choki)
+Kino.Control.subscribe(button2, :par)
+```
+
+```elixir
+widget = Kino.Frame.new()
+```
+
+```elixir
+loop = fn f ->
+  receive do
+    {:gu, _} ->
+      res = Janken.pon("0")
+      Kino.Frame.append(widget, res)
+
+    {:choki, _} ->
+      res = Janken.pon("1")
+      Kino.Frame.append(widget, res)
+
+    {:par, _} ->
+      res = Janken.pon("2")
+      Kino.Frame.append(widget, res)
+
+    _ ->
+      :ok
+  end
+end
+
+loop.(loo)
+```

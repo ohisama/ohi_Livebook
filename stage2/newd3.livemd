@@ -1,0 +1,434 @@
+# new d3
+
+```elixir
+Mix.install([
+  {:jason, "~> 1.4"},
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+defmodule KinoD3.Cluster do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://d3js.org/d3.v5.min.js";
+
+    export function init(ctx, json) {
+       	const chartid = document.createElement("div");
+    	chartid.id = "out";
+    	ctx.root.appendChild(chartid);
+    	var obj = JSON.parse(json); 
+        var root = d3.hierarchy(obj);
+       var cluster = d3.cluster().size([250, 250])
+       cluster(root);
+       var g = d3.select('#out')
+          .append("svg").attr("width", 600).attr("height", 600)
+          .append("g").attr("transform", "translate(300, 300)");
+
+       var link = g.selectAll(".link").data(root.links()).enter().append("path")
+        .attr("class", "link").attr("fill", "none").attr("stroke", "#555")
+        .attr("stroke-width", "1.5px").attr("opacity", "0.6")
+        .attr("d", d3.linkRadial().angle(function(d) {
+      		return (d.x + 90) * Math.PI / 180;
+      	}).radius(function(d) {
+      		return d.y;
+      }));
+     	var node = g.selectAll(".node").data(root.descendants()).enter().append("g")
+          .attr("transform", function(d) {
+       	return "rotate(" + (d.x) + ")translate(" + d.y + ")";
+       })
+       node.append("circle").attr("r", 8).attr("stroke", "steelblue")
+          .attr("stroke-width", "1.5px").attr("fill", "white");
+      	node.append("text").attr("dy", 3).attr("dx", function(d) {
+      		return d.x < 90 || d.x > 270 ? 8 : -8;
+      	}).style("text-anchor", function(d) {
+       	return d.x < 90 || d.x > 270 ? "start" : "end";
+      	}).attr("font-size", "200%").attr("transform", function(d) {
+      		return d.x < 90 || d.x > 270 ? null : "rotate(180)";
+      	}).text(function(d) {
+       	return d.data.name;
+       });
+    }
+    """
+  end
+end
+
+"""
+{
+		"name": "A",
+		"children": [{ 
+			"name": "B" 
+		}, {
+			"name": "C",
+			"children": [{ "name": "D" }, { "name": "E" }, { "name": "F" }]
+		}, { 
+			"name": "G" 
+		}, {
+			"name": "H",
+			"children": [{ "name": "I" }, { "name": "J" }]
+		}, { 
+			"name": "K" 
+		}, {
+			"name": "L",
+			"children": [{ "name": "M" }, { "name": "N" }]
+		}, { 
+			"name": "O" 
+		}, { 
+			"name": "P" 
+		}]
+	}
+"""
+|> Jason.decode!()
+|> IO.inspect()
+|> Jason.encode!()
+|> KinoD3.Cluster.new()
+```
+
+```elixir
+%{
+  "children" => [
+    %{"name" => "B"},
+    %{
+      "children" => [%{"name" => "D"}, %{"name" => "E"}, %{"name" => "F"}],
+      "name" => "C"
+    },
+    %{"name" => "G"},
+    %{"children" => [%{"name" => "I"}, %{"name" => "J"}], "name" => "H"},
+    %{"name" => "K"},
+    %{"children" => [%{"name" => "M"}, %{"name" => "N"}], "name" => "L"},
+    %{"name" => "O"},
+    %{"name" => "P"}
+  ],
+  "name" => "A"
+}
+|> Jason.encode!()
+|> KinoD3.Cluster.new()
+```
+
+```elixir
+defmodule KinoD3.Tree do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://d3js.org/d3.v5.min.js";
+    export function init(ctx, json) {
+      const chartid = document.createElement("div");
+    	chartid.id = "out";
+    	ctx.root.appendChild(chartid);
+    	var obj = JSON.parse(json); 
+      var root = d3.hierarchy(obj);
+      var tree = d3.tree().size([250, 250])
+      tree(root);
+      var g = d3.select('#out')
+          .append("svg").attr("width", 600).attr("height", 600)
+          .append("g").attr("transform", "translate(300, 300)");
+      var link = g.selectAll(".link").data(root.descendants().slice(1))
+        .enter().append("path").attr("class", "link").attr("fill", "none").attr("stroke", "#555")
+        .attr("stroke-width", "1.5px").attr("opacity", "0.6")
+        .attr("d", function(d) {
+          return "M" + d.y + "," + d.x + "C" + (d.parent.y + 100) + "," + d.x +
+            " " + (d.parent.y + 100) + "," + d.parent.x + " " + d.parent.y + "," + d.parent.x;
+        });
+      var node = g.selectAll(".node").data(root.descendants())
+        .enter().append("g").attr("class", "node")
+        .attr("transform", function(d) { 
+          return "translate(" + d.y + "," + d.x + ")"; 
+        })
+      node.append("circle").attr("r", 8).attr("fill", "#999");
+      node.append("text").attr("dy", 3).attr("x", function(d) { 
+        return d.children ? -12 : 12; 
+      }).style("text-anchor", function(d) { 
+        return d.children ? "end" : "start"; 
+      }).attr("font-size", "200%").text(function(d) { 
+        return d.data.name; 
+      });
+    }
+    """
+  end
+end
+
+%{
+  "children" => [
+    %{"name" => "B"},
+    %{
+      "children" => [%{"name" => "D"}, %{"name" => "E"}, %{"name" => "F"}],
+      "name" => "C"
+    },
+    %{"name" => "G"},
+    %{"children" => [%{"name" => "I"}, %{"name" => "J"}], "name" => "H"},
+    %{"name" => "K"},
+    %{"children" => [%{"name" => "M"}, %{"name" => "N"}], "name" => "L"},
+    %{"name" => "O"},
+    %{"name" => "P"}
+  ],
+  "name" => "A"
+}
+|> Jason.encode!()
+|> KinoD3.Tree.new()
+```
+
+```elixir
+"""
+{
+    "name": "A",
+    "children": [
+      { "name": "B", "value": 25 },
+      {
+        "name": "C",
+        "children": [
+          { "name": "D", "value": 10 },
+          { "name": "E", "value": 15 },
+          { "name": "F", "value": 10 }
+        ]
+      },
+      { "name": "G", "value": 15 },
+      {
+        "name": "H",
+        "children": [
+          { "name": "I", "value": 20 },
+          { "name": "J", "value": 10 }
+        ]
+      },
+      { "name": "K", "value": 10 }
+    ]
+  }
+"""
+|> Jason.decode!()
+|> IO.inspect()
+```
+
+```elixir
+defmodule KinoD3.Treemap do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://d3js.org/d3.v5.min.js";
+    export function init(ctx, json) {
+      const chartid = document.createElement("div");
+    	chartid.id = "out";
+    	ctx.root.appendChild(chartid);
+    	var obj = JSON.parse(json); 
+      var root = d3.hierarchy(obj);
+      root.sum(function(d) { 
+        return d.value; 
+      }).sort(function(a, b) { 
+        return b.height - a.height || b.value - a.value; 
+      }); 
+      var treemap = d3.treemap().size([500, 500]).padding(1).round(true);
+      treemap(root);
+      var g = d3.select('#out')
+        .append("svg").attr("width", 600).attr("height", 600)
+        .selectAll(".node").data(root.leaves()).enter().append("g").attr("class", "node")
+        .attr("transform", function(d) { 
+          return "translate(" + d.x0 + "," + (d.y0) + ")"; 
+        });
+      g.append("rect").style("width", function(d) { 
+        return d.x1 - d.x0; 
+      }).style("height", function(d) { 
+        return d.y1 - d.y0; 
+      }).style("fill", function(d) {
+        while(d.depth > 1) d = d.parent;
+        return d3.schemeCategory10[parseInt(d.value % 7)];
+      }).style("opacity", 0.6)
+      g.append("text").attr("text-anchor", "start").attr("x", 5).attr("dy", 30)
+        .attr("font-size", "150%").attr("class", "node-label").text(function(d) { 
+          return d.data.name + " : " + d.value; 
+        });
+    }
+    """
+  end
+end
+
+%{
+  "children" => [
+    %{"name" => "B", "value" => 25},
+    %{
+      "children" => [
+        %{"name" => "D", "value" => 10},
+        %{"name" => "E", "value" => 15},
+        %{"name" => "F", "value" => 10}
+      ],
+      "name" => "C"
+    },
+    %{"name" => "G", "value" => 15},
+    %{
+      "children" => [
+        %{"name" => "I", "value" => 20},
+        %{"name" => "J", "value" => 10}
+      ],
+      "name" => "H"
+    },
+    %{"name" => "K", "value" => 10}
+  ],
+  "name" => "A"
+}
+|> Jason.encode!()
+|> KinoD3.Treemap.new()
+```
+
+```elixir
+defmodule KinoD3.Partition do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://d3js.org/d3.v5.min.js";
+    export function init(ctx, json) {
+      const chartid = document.createElement("div");
+    	chartid.id = "out";
+    	ctx.root.appendChild(chartid);
+    	var obj = JSON.parse(json); 
+      var root = d3.hierarchy(obj);
+      root.sum(function(d) { 
+        return d.value; 
+      }).sort(function(a, b) { 
+        return b.height - a.height || b.value - a.value; 
+      }); 
+      var partition = d3.partition().size([400, 400]).padding(1).round(true);
+      partition(root);
+      var g = d3.select('#out')
+          .append("svg").attr("width", 600).attr("height", 600)
+          .selectAll(".node").data(root.descendants()).enter()
+          .append("g").attr("class", "node").attr("transform", function(d) { 
+            return "translate(" + d.y0 + "," + d.x0 + ")"; 
+          }); 
+      g.append("rect").style("width", function(d) { 
+          return d.y1 - d.y0; 
+        }).style("height", function(d) { 
+          return d.x1 - d.x0; 
+        }).style("fill", function(d) {
+          while(d.depth > 1) 
+            d = d.parent;
+          if (d.depth == 0) 
+            return "gray";
+          return d3.schemeCategory10[parseInt(d.value % 7)];
+        }).style("opacity", 0.6)
+      g.append("text").attr("text-anchor", "start").attr("x", 5).attr("dy", 30)
+        .attr("font-size", "150%").attr("class", "node-label")
+        .text(function(d) { 
+          return d.data.name + " : " + d.value; 
+        });
+    }
+    """
+  end
+end
+
+%{
+  "children" => [
+    %{"name" => "B", "value" => 25},
+    %{
+      "children" => [
+        %{"name" => "D", "value" => 10},
+        %{"name" => "E", "value" => 15},
+        %{"name" => "F", "value" => 10}
+      ],
+      "name" => "C"
+    },
+    %{"name" => "G", "value" => 15},
+    %{
+      "children" => [
+        %{"name" => "I", "value" => 20},
+        %{"name" => "J", "value" => 10}
+      ],
+      "name" => "H"
+    },
+    %{"name" => "K", "value" => 10}
+  ],
+  "name" => "A"
+}
+|> Jason.encode!()
+|> KinoD3.Partition.new()
+```
+
+```elixir
+defmodule KinoD3.Pack do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://d3js.org/d3.v5.min.js";
+    export function init(ctx, json) {
+      const chartid = document.createElement("div");
+    	chartid.id = "out";
+    	ctx.root.appendChild(chartid);
+    	var obj = JSON.parse(json); 
+      var root = d3.hierarchy(obj);
+      root.sum(function(d) { 
+        return d.value; 
+      });
+      var pack = d3.pack().size([500, 500]).padding(1);
+      pack(root);
+      var node = d3.select('#out')
+        .append("svg").attr("width", 600).attr("height", 600)
+        .selectAll(".node").data(root.descendants()).enter()
+        .append("g").attr("transform", function(d) { 
+          return "translate(" + d.x + "," + (d.y) + ")"; 
+        });
+      var color = ["orange", "Khaki", "Ivory"];
+      node.append("circle").attr("r", function(d) { 
+        return d.r; 
+      }).attr("stroke", "black").attr("fill", function(d) { 
+        return color[d.depth]; 
+      });
+      node.append("text").style("text-anchor", function(d) { 
+        return d.children ? "end" : "middle"; 
+      }).attr("font-size", "150%").text(function(d) { 
+        return d.children ? "" : d.data.name; 
+      });
+    }
+    """
+  end
+end
+
+%{
+  "children" => [
+    %{"name" => "B", "value" => 25},
+    %{
+      "children" => [
+        %{"name" => "D", "value" => 10},
+        %{"name" => "E", "value" => 15},
+        %{"name" => "F", "value" => 10}
+      ],
+      "name" => "C"
+    },
+    %{"name" => "G", "value" => 15},
+    %{
+      "children" => [
+        %{"name" => "I", "value" => 20},
+        %{"name" => "J", "value" => 10}
+      ],
+      "name" => "H"
+    },
+    %{"name" => "K", "value" => 10}
+  ],
+  "name" => "A"
+}
+|> Jason.encode!()
+|> KinoD3.Pack.new()
+```

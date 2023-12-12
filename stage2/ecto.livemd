@@ -1,0 +1,78 @@
+# ecto
+
+```elixir
+Mix.install([
+  {:ecto_sql, "~> 3.9"},
+  {:ecto, "~> 3.9"},
+  {:kino, "~> 0.10.0"},
+  {:ecto_sqlite3, "~> 0.12"}
+])
+```
+
+## Section
+
+```elixir
+defmodule Repo do
+  use Ecto.Repo, adapter: Ecto.Adapters.SQLite3, otp_app: :nothing
+end
+```
+
+```elixir
+defmodule User do
+  use Ecto.Schema
+  @primary_key false
+  schema "users" do
+    field(:name, :string)
+    field(:age, :integer)
+  end
+end
+```
+
+```elixir
+case Ecto.Repo.all_running() do
+  [_ | _] ->
+    Repo.stop()
+
+  _ ->
+    []
+end
+```
+
+```elixir
+Repo.start_link(database: "anti-aging.db")
+```
+
+```elixir
+[
+  "DROP TABLE IF EXISTS users",
+  "CREATE TABLE users (name STRING, age INT)"
+]
+|> Enum.map(&Ecto.Adapters.SQL.query!(Repo, &1, []))
+```
+
+```elixir
+users = [
+  %{name: "👶", age: 0},
+  %{name: "🦖", age: 65_000_000},
+  %{name: "🤠", age: 92},
+  %{name: "👧", age: 12},
+  %{name: "👩🏻", age: 42},
+  %{name: "🦄", age: 101}
+]
+```
+
+```elixir
+Repo.insert_all("users", users, [])
+```
+
+```elixir
+import Ecto.Query
+
+min_age = 21
+max_age = 55
+
+query = from(u in User, where: u.age >= ^min_age and u.age <= ^max_age)
+
+Repo.all(query)
+|> Kino.DataTable.new()
+```

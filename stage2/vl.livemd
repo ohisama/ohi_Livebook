@@ -1,0 +1,123 @@
+# vl
+
+```elixir
+Mix.install([
+  {:kino_vega_lite, "~> 0.1.7"},
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+x = 1..11
+
+y =
+  for xi <- x do
+    3 * xi - 24
+  end
+
+my_data = %{x: x, y: y}
+```
+
+<!-- livebook:{"attrs":{"chart_title":null,"height":null,"layers":[{"active":true,"chart_type":"line","color_field":null,"color_field_aggregate":null,"color_field_bin":null,"color_field_scale_scheme":null,"color_field_type":null,"data_variable":"my_data","geodata_color":"blue","latitude_field":null,"longitude_field":null,"x_field":"x","x_field_aggregate":null,"x_field_bin":null,"x_field_scale_type":null,"x_field_type":"quantitative","y_field":"y","y_field_aggregate":null,"y_field_bin":null,"y_field_scale_type":null,"y_field_type":"quantitative"}],"vl_alias":"Elixir.VegaLite","width":null},"chunks":null,"kind":"Elixir.KinoVegaLite.ChartCell","livebook_object":"smart_cell"} -->
+
+```elixir
+VegaLite.new()
+|> VegaLite.data_from_values(my_data, only: ["x", "y"])
+|> VegaLite.mark(:line)
+|> VegaLite.encode_field(:x, "x", type: :quantitative)
+|> VegaLite.encode_field(:y, "y", type: :quantitative)
+```
+
+```elixir
+my_data = %{
+  x: [1, 2, 3, 4, 5, 6, 7],
+  y: [64.3, 63.8, 63.6, 64.0, 63.5, 63.2, 63.1]
+}
+```
+
+<!-- livebook:{"attrs":{"chart_title":null,"height":null,"layers":[{"active":true,"chart_type":"point","color_field":null,"color_field_aggregate":null,"color_field_bin":null,"color_field_scale_scheme":null,"color_field_type":null,"data_variable":"my_data","geodata_color":"blue","latitude_field":null,"longitude_field":null,"x_field":"x","x_field_aggregate":null,"x_field_bin":null,"x_field_scale_type":null,"x_field_type":"quantitative","y_field":"y","y_field_aggregate":null,"y_field_bin":null,"y_field_scale_type":null,"y_field_type":"quantitative"}],"vl_alias":"Elixir.VegaLite","width":null},"chunks":null,"kind":"Elixir.KinoVegaLite.ChartCell","livebook_object":"smart_cell"} -->
+
+```elixir
+VegaLite.new()
+|> VegaLite.data_from_values(my_data, only: ["x", "y"])
+|> VegaLite.mark(:point)
+|> VegaLite.encode_field(:x, "x", type: :quantitative)
+|> VegaLite.encode_field(:y, "y", type: :quantitative)
+```
+
+```elixir
+y =
+  1..100
+  |> Enum.map(fn x ->
+    :math.sin(x / 5)
+  end)
+
+x =
+  1..100
+  |> Enum.map(fn x ->
+    x
+  end)
+
+my_data = %{x: x, y: y}
+```
+
+<!-- livebook:{"attrs":{"chart_title":null,"height":null,"layers":[{"active":true,"chart_type":"line","color_field":null,"color_field_aggregate":null,"color_field_bin":null,"color_field_scale_scheme":null,"color_field_type":null,"data_variable":"my_data","geodata_color":"blue","latitude_field":null,"longitude_field":null,"x_field":"x","x_field_aggregate":null,"x_field_bin":null,"x_field_scale_type":null,"x_field_type":"quantitative","y_field":"y","y_field_aggregate":null,"y_field_bin":null,"y_field_scale_type":null,"y_field_type":"quantitative"}],"vl_alias":"Elixir.VegaLite","width":null},"chunks":null,"kind":"Elixir.KinoVegaLite.ChartCell","livebook_object":"smart_cell"} -->
+
+```elixir
+VegaLite.new()
+|> VegaLite.data_from_values(my_data, only: ["x", "y"])
+|> VegaLite.mark(:line)
+|> VegaLite.encode_field(:x, "x", type: :quantitative)
+|> VegaLite.encode_field(:y, "y", type: :quantitative)
+```
+
+```elixir
+memory = [
+  total: :red,
+  processes: :yellow,
+  atom: :green,
+  binary: :pink,
+  code: :orange,
+  ets: :blue
+]
+
+layers =
+  for {layer, color} <- memory do
+    VegaLite.new()
+    |> VegaLite.mark(:line)
+    |> VegaLite.encode_field(:x, "iteration", type: :quantitative)
+    |> VegaLite.encode_field(:y, Atom.to_string(layer),
+      type: :quantitative,
+      title: "Memory usage (MB)"
+    )
+    |> VegaLite.encode(:color, value: color, datum: Atom.to_string(layer))
+  end
+
+widget =
+  VegaLite.new(width: 500, height: 200)
+  |> VegaLite.layers(layers)
+  |> Kino.VegaLite.new()
+```
+
+```elixir
+Kino.VegaLite.periodically(widget, 200, 0, fn i ->
+  point =
+    :erlang.memory()
+    |> Enum.map(fn {type, bytes} ->
+      {type, bytes / 1_000_000}
+    end)
+    |> Map.new()
+    |> Map.put(:iteration, i)
+
+  Kino.VegaLite.push(widget, point, window: 1000)
+  {:cont, i + 1}
+end)
+```
+
+```elixir
+for i <- 1..1_000_000 do
+  :"atom#{i}"
+end
+```

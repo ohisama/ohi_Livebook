@@ -1,0 +1,394 @@
+# nx
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.4"},
+  {:vega_lite, "~> 0.1.6"},
+  {:kino_vega_lite, "~> 0.1.4"},
+  {:kino, "~> 0.10.0"}
+])
+
+alias VegaLite, as: Vl
+```
+
+## Section
+
+```elixir
+sample = [[166, 58.7], [176.0, 75.7], [171.0, 62.1], [173.0, 70.4], [169.0, 60.1]]
+
+data =
+  sample
+  |> Enum.map(fn [height, weight] ->
+    %{height: height, weight: weight}
+  end)
+
+Vl.new()
+|> Vl.data_from_values(data)
+|> Vl.mark(:point)
+|> Vl.encode_field(:x, "height", type: :quantitative, title: "身長", scale: [zero: false])
+|> Vl.encode_field(:y, "weight", type: :quantitative, title: "体重", scale: [zero: false])
+```
+
+```elixir
+sample = Nx.tensor(sample, names: [:x, :y])
+x = sample[y: 0]
+y = sample[y: 1]
+
+x = Nx.subtract(x, Nx.mean(x))
+y = Nx.subtract(y, Nx.mean(y))
+
+Vl.new()
+|> Vl.data_from_values(height: Nx.to_flat_list(x), weight: Nx.to_flat_list(y))
+|> Vl.mark(:point)
+|> Vl.encode_field(:x, "height", type: :quantitative, title: "身長", scale: [zero: false])
+|> Vl.encode_field(:y, "weight", type: :quantitative, title: "体重", scale: [zero: false])
+```
+
+```elixir
+defmodule LinearRegression do
+  import Nx.Defn
+
+  defn pred({w, b}, x) do
+    w * x + b
+  end
+
+  defn mse(yp, y) do
+    (yp - y)
+    |> Nx.power(2)
+    |> Nx.mean()
+  end
+
+  defn loss(params, x, y) do
+    yp = pred(params, x)
+    mse(yp, y)
+  end
+
+  defn update({w, b} = params, x, y, lr) do
+    {grad_w, grad_b} = grad(params, &loss(&1, x, y))
+    {w - grad_w * lr, b - grad_b * lr}
+  end
+
+  defn init_params do
+    {Nx.tensor(1.0), Nx.tensor(1.0)}
+  end
+
+  def loss_update({lvs, w, b}, x, y, lr) do
+    lv = LinearRegression.loss({w, b}, x, y)
+    {w, b} = LinearRegression.update({w, b}, x, y, lr)
+    {[Nx.to_number(lv) | lvs], w, b}
+  end
+end
+```
+
+```elixir
+epochs = 500
+lr = 0.001
+{w, b} = LinearRegression.init_params()
+
+acc =
+  for _ <- 1..epochs, reduce: {[], w, b} do
+    acc -> LinearRegression.loss_update(acc, x, y, lr)
+  end
+
+{lvs, w, b} = acc
+
+Vl.new(width: 600, height: 400, title: "学習曲線")
+|> Vl.data_from_values(x: 1..500, y: Enum.reverse(lvs))
+|> Vl.mark(:point)
+|> Vl.encode_field(:x, "x", type: :quantitative, title: "繰り返し数", scale: [zero: false])
+|> Vl.encode_field(:y, "y", type: :quantitative, title: "損失", scale: [zero: false])
+```
+
+```elixir
+x0 = -5
+x9 = 5
+xl = [x0, x9]
+
+yl = [
+  Nx.to_number(LinearRegression.pred({w, b}, x0)),
+  Nx.to_number(LinearRegression.pred({w, b}, x9))
+]
+
+Vl.new(width: 600, height: 400, title: "散布図と相関直線（加工後）")
+|> Vl.layers([
+  Vl.new()
+  |> Vl.data_from_values(x: xl, y: yl)
+  |> Vl.mark(:line)
+  |> Vl.encode_field(:x, "x", type: :quantitative, title: "身長", scale: [zero: false])
+  |> Vl.encode_field(:y, "y", type: :quantitative, title: "体重", scale: [zero: false]),
+  Vl.new()
+  |> Vl.data_from_values(height: Nx.to_flat_list(x), weight: Nx.to_flat_list(y))
+  |> Vl.mark(:point)
+  |> Vl.encode_field(:x, "height", type: :quantitative)
+  |> Vl.encode_field(:y, "weight", type: :quantitative)
+  |> Vl.encode(:color, value: "#db646f")
+])
+```
+
+```elixir
+defmodule Xor do
+  import Nx.Defn
+
+  defn init_random_params do
+    key = Nx.Random.key(42)
+    {w1, new_key} = Nx.Random.normal(key, 0.0, 0.1, shape: {2, 8}, names: [:input, :layer])
+    {b1, new_key} = Nx.Random.normal(new_key, 0.0, 0.1, shape: {8}, names: [:layer])
+    {w2, new_key} = Nx.Random.normal(new_key, 0.0, 0.1, shape: {8, 1}, names: [:layer, :output])
+    {b2, _new_key} = Nx.Random.normal(new_key, 0.0, 0.1, shape: {1}, names: [:output])
+    {w1, b1, w2, b2}
+  end
+
+  defn predict({w1, b1, w2, b2}, x) do
+    x
+    |> Nx.dot(w1)
+    |> Nx.add(b1)
+    |> Nx.tanh()
+    |> Nx.dot(w2)
+    |> Nx.add(b2)
+    |> Nx.sigmoid()
+  end
+
+  defn loss({w1, b1, w2, b2}, x, y) do
+    preds = predict({w1, b1, w2, b2}, x)
+    Nx.mean(Nx.power(y - preds, 2))
+  end
+
+  defn update({w1, b1, w2, b2} = params, x, y, step) do
+    {grad_w1, grad_b1, grad_w2, grad_b2} = grad(params, &loss(&1, x, y))
+    {w1 - grad_w1 * step, b1 - grad_b1 * step, w2 - grad_w2 * step, b2 - grad_b2 * step}
+  end
+
+  def train(params, x, y) do
+    for i <- 0..31, reduce: params do
+      acc ->
+        update(acc, x[i], y[i], 0.1)
+    end
+  end
+end
+
+z0 = for _ <- 0..31, do: Enum.random(0..1)
+z1 = for _ <- 0..31, do: Enum.random(0..1)
+x0 = Nx.tensor(z0)
+x1 = Nx.tensor(z1)
+y = Nx.logical_xor(x0, x1)
+x = Nx.concatenate([Nx.reshape(x0, {32, 1}), Nx.reshape(x1, {32, 1})], axis: 1)
+
+params = Xor.init_random_params()
+
+Xor.loss(params, x[0], y[0])
+|> IO.inspect()
+
+params =
+  for i <- 0..310, reduce: params do
+    acc ->
+      for i <- 0..31, reduce: acc do
+        bcc ->
+          Xor.update(bcc, x[i], y[i], 0.1)
+      end
+  end
+
+Xor.loss(params, x[0], y[0])
+|> IO.inspect()
+
+IO.puts("0 1")
+
+Xor.predict(params, Nx.tensor([0, 1]))
+|> IO.inspect()
+
+IO.puts("0 0")
+
+Xor.predict(params, Nx.tensor([0, 0]))
+|> IO.inspect()
+
+IO.puts("1 1")
+
+Xor.predict(params, Nx.tensor([1, 1]))
+|> IO.inspect()
+
+IO.puts("1 0")
+
+Xor.predict(params, Nx.tensor([1, 0]))
+|> IO.inspect()
+```
+
+```elixir
+defmodule Learn do
+  import Nx.Defn
+
+  defn f(params, input) do
+    params
+    |> Nx.dot(input)
+  end
+
+  defn model(params, input) do
+    prediction = f(params, input)
+    prediction
+  end
+
+  defn measure_difference(prediction, label) do
+    prediction
+    |> Nx.subtract(label)
+    |> Nx.power(2)
+    |> Nx.mean()
+  end
+
+  defn objective(params, input, label) do
+    prediction = model(params, input)
+    measure_difference(prediction, label)
+  end
+
+  defn step(params, input, label) do
+    direction_of_descent = grad(params, &objective(&1, input, label))
+    params - direction_of_descent * 1.0e-3
+  end
+end
+
+true_params = Nx.random_uniform({16})
+
+true_f = fn params, x ->
+  params
+  |> Nx.dot(x)
+end
+
+train_data =
+  for _ <- 1..1000 do
+    x = Nx.random_uniform({16})
+    {x, true_f.(true_params, x)}
+  end
+
+params = Nx.random_normal({16})
+
+recovered_params =
+  for _ <- 1..10, reduce: params do
+    params ->
+      for {input, label} <- train_data, reduce: params do
+        params ->
+          Learn.step(params, input, label)
+      end
+  end
+
+diff0 =
+  for _ <- 1..5 do
+    x = Nx.random_uniform({16})
+    pred = Learn.model(recovered_params, x)
+    actual = true_f.(true_params, x)
+    Learn.measure_difference(actual, pred)
+  end
+
+diff1 =
+  for _ <- 1..5 do
+    x = Nx.random_uniform({16})
+    pred = Learn.model(params, x)
+    actual = true_f.(true_params, x)
+    Learn.measure_difference(actual, pred)
+  end
+```
+
+```elixir
+x =
+  Nx.iota({1, 300})
+  |> Nx.multiply(10 / 300)
+  |> Nx.subtract(5)
+
+y1 =
+  Nx.power(x, 2)
+  |> Nx.to_flat_list()
+
+y2 =
+  Nx.subtract(x, 2)
+  |> Nx.power(2)
+  |> Nx.to_flat_list()
+
+Vl.new(width: 200, height: 200)
+|> Vl.data_from_values(x: Nx.to_flat_list(x), y1: y1, y2: y2)
+|> Vl.layers([
+  Vl.new()
+  |> Vl.mark(:line, color: :red)
+  |> Vl.encode_field(:x, "x", type: :quantitative)
+  |> Vl.encode_field(:y, "y1", type: :quantitative),
+  Vl.new()
+  |> Vl.mark(:line, color: :black, stroke_dash: [6, 4])
+  |> Vl.encode_field(:x, "x", type: :quantitative)
+  |> Vl.encode_field(:y, "y2", type: :quantitative)
+])
+```
+
+```elixir
+defmodule Sin do
+  import Nx.Defn
+
+  defn init_random_params do
+    key = Nx.Random.key(42)
+    {w1, new_key} = Nx.Random.normal(key, 0.0, 0.9, shape: {1, 128}, names: [:input, :layer])
+    {b1, new_key} = Nx.Random.normal(new_key, 0.0, 0.9, shape: {128}, names: [:layer])
+    {w2, new_key} = Nx.Random.normal(new_key, 0.0, 0.9, shape: {128, 1}, names: [:layer, :output])
+    {b2, _new_key} = Nx.Random.normal(new_key, 0.0, 0.9, shape: {1}, names: [:output])
+    {w1, b1, w2, b2}
+  end
+
+  defn predict({w1, b1, w2, b2}, x) do
+    x
+    |> Nx.dot(w1)
+    |> Nx.add(b1)
+    |> Nx.tanh()
+    |> Nx.dot(w2)
+    |> Nx.add(b2)
+    |> Nx.tanh()
+  end
+
+  defn loss({w1, b1, w2, b2}, x, y) do
+    preds = predict({w1, b1, w2, b2}, x)
+    Nx.mean(Nx.pow(y - preds, 2))
+  end
+
+  defn update({w1, b1, w2, b2} = params, x, y, step) do
+    {grad_w1, grad_b1, grad_w2, grad_b2} = grad(params, &loss(&1, x, y))
+    {w1 - grad_w1 * step, b1 - grad_b1 * step, w2 - grad_w2 * step, b2 - grad_b2 * step}
+  end
+end
+
+y0 =
+  0..100
+  |> Enum.map(fn x ->
+    :math.sin(x / 15)
+  end)
+
+x0 =
+  0..100
+  |> Enum.map(fn x ->
+    x / 15
+  end)
+
+x = Nx.tensor(x0)
+y = Nx.tensor(y0)
+params = Sin.init_random_params()
+
+params =
+  for j <- 0..1000, reduce: params do
+    acc ->
+      for i <- 0..100, reduce: acc do
+        bcc ->
+          Sin.update(bcc, x[i], y[i], 0.01)
+      end
+  end
+
+p =
+  0..100
+  |> Enum.map(fn x ->
+    Xor.predict(params, Nx.tensor([x / 15]))
+    |> Nx.to_flat_list()
+  end)
+
+Vl.new(width: 200, height: 200)
+|> Vl.data_from_values(x: Nx.to_flat_list(x), y1: Nx.to_flat_list(y), y2: p)
+|> Vl.layers([
+  Vl.new()
+  |> Vl.mark(:line, color: :red)
+  |> Vl.encode_field(:x, "x", type: :quantitative)
+  |> Vl.encode_field(:y, "y1", type: :quantitative),
+  Vl.new()
+  |> Vl.mark(:line, color: :blue, stroke_dash: [6, 4])
+  |> Vl.encode_field(:x, "x", type: :quantitative)
+  |> Vl.encode_field(:y, "y2", type: :quantitative)
+])
+```

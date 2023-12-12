@@ -1,0 +1,766 @@
+# verilog
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+defmodule KinoOhi.Table do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    var c0;
+
+    class C {
+    constructor(n) {
+    this.h = "";
+    this.n = n;
+    this.s = [];
+    var t = new Array(n);
+    for (var i = 0; i < n; i++)
+    {
+    t[i] = 0;
+    }
+    this.s.push(t);
+    return this;
+    }
+    init(a, b) {
+    b = b + 1;
+    for (var i = a; i < b; i++)
+    {
+    var t = [];
+    for (var j = 0; j < this.s.length; j++)
+    {
+      var u = this.s[j];
+      u[i] = 0;
+      t.push(u.slice());
+      u[i] = 1;
+      t.push(u);
+    }
+    this.s = t;
+    }
+    return this;
+    }
+    xor(a, b, c) {
+    for (var j = 0; j < this.s.length; j++)
+    {
+     this.s[j][c] = this.s[j][a] ^ this.s[j][b];
+    }
+    return this;
+    }
+    nand(a, b, c) {
+    for (var j = 0; j < this.s.length; j++)
+    {
+      var s = this.s[j][a] & this.s[j][b];
+      if (s == 0)
+      {
+        this.s[j][c] = 1;
+      }
+      else
+      {
+        this.s[j][c] = 0;
+      }
+    }
+    return this;
+    }
+    nor(a, b, c) {
+    for (var j = 0; j < this.s.length; j++)
+    {
+      var s = this.s[j][a] | this.s[j][b];
+      if (s == 0)
+      {
+        this.s[j][c] = 1;
+      }
+      else
+      {
+        this.s[j][c] = 0;
+      }
+    }
+    return this;
+    }
+    not(a, b) {
+    for (var j = 0; j < this.s.length; j++)
+    {
+      var s = !this.s[j][a];
+      if (s == true)
+      {
+        this.s[j][b] = 1;
+      }
+      else
+      {
+        this.s[j][b] = 0;
+      }
+    }
+    return this;
+    }
+    and(a, b, c) {
+    for (var j = 0; j < this.s.length; j++)
+    {
+     this.s[j][c] = this.s[j][a] & this.s[j][b];
+    }
+    return this;
+    }
+    or(a, b, c) {
+    for (var j = 0; j < this.s.length; j++)
+    {
+     this.s[j][c] = this.s[j][a] | this.s[j][b];
+    }
+    return this;
+    }
+    get() {
+    return this.s;
+    }
+    table() {
+    this.h += '<table>';
+    for (var row = 0; row < this.s.length + 1; row++)
+    {
+    	this.h +='<tr>';
+    	for (var col = 0; col < this.n + 1; col++)
+    	{
+    		if (col === 0 && row === 0)
+    		{
+    			this.h += '<th>&nbsp;</th>';
+     	}
+    		else if (col === 0 && row !== 0)
+     	{
+      	this.h += '<th>' + row + '</th>';
+      }
+     	else if (row === 0)
+     	{
+      	this.h += '<th>' + (col - 1) + '</th>'; 
+      	}
+     	else
+     	{
+      	var v = this.s[row - 1][col- 1];
+       this.h += '<td>' + v + '</td>';
+      }
+     }
+     this.h += '</tr>';
+    }
+    this.h += '</table>';
+    document.getElementById('out').innerHTML = this.h;
+    }
+    }
+    function run(str) {
+    var codes = str.split("\\n");  
+    var len = codes.length;
+    var i;
+    for (i = 0; i < len; i++)
+    {
+    var code = codes[i].split(" ");
+    switch (code[0])
+    {
+    case "":
+    break;
+    case "out":
+    break;
+    case "wire":
+    break;
+    case "make":
+      var a = parseInt(code[1]);
+      c0 = new C(a);
+    break;
+    case "in":
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      c0.init(a, b);
+    break;
+    case "nand":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      c0.nand(a, b, c);
+    break;
+    case "xor":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      c0.xor(a, b, c);
+    break;
+    case "and":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      c0.and(a, b, c);
+    break;
+    case "or":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      c0.or(a, b, c);
+    break;
+    case "nor":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      c0.nor(a, b, c);
+    break;
+    case "not":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      c0.not(a, b);
+    break;
+    default:
+      alert(code[0]);
+    break;
+    }
+    }
+    c0.table();
+    }
+    export function init(ctx, html) {
+      ctx.importCSS("main.css");
+    	const out0 = document.createElement("div");
+    out0.id = "out";
+    out0.style.width = "100%";
+    out0.style.height = "300px";
+    ctx.root.appendChild(out0);
+      run(html);
+    }
+    """
+  end
+
+  asset "main.css" do
+    """
+    table {
+      border-collapse: collapse;
+    }
+    td,th {
+      width: 30px;
+      border: 1px solid #000;
+    }
+    td {
+      text-align: center;
+    }
+    th {
+      background-color: #ccc;
+    }
+    """
+  end
+end
+
+KinoOhi.Table.new("""
+make 10
+in 0 2
+wire 3 8
+out 9 9
+not 2 3
+and 0 1 4
+and 1 2 5
+not 0 6
+and 3 4 7
+and 5 6 8
+or 7 8 9
+""")
+```
+
+```elixir
+defmodule KinoOhi.Lut do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    var c0;
+
+    class LUT {
+    constructor(n) {
+    this.h = "";
+    this.n = n;
+    this.s = [];
+    this.a = 0;
+    this.b = 0;
+    this.bin = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
+    return this;
+    }
+    in(a) {
+    this.a = a;
+    return this;
+    }
+    out(a) {
+    this.b = a;
+    return this;
+    }
+    code(a, b) {
+    var t = new Array(this.n);
+    var i,
+      j,
+      k;
+    for (i = 0; i < this.a; i++)
+    {
+      j = this.a - i - 1;
+      k = a >> j;
+      k = k & 1;
+      if (k == 1) t[i] = 1;
+      else t[i] = 0;
+    }
+    for (i = 0; i < this.b; i++)
+    {
+      j = this.b - i - 1;
+      k = b >> j;
+      k = k & 1;
+      if (k == 1) t[this.a + i] = 1;
+      else t[this.a + i] = 0;
+    }
+    this.s.push(t);
+    return this;
+    }
+    table() {
+    this.h += '<table>';
+    this.h += '<tr>';
+    for (var a = 0; a < this.a; a++)
+    {
+      this.h += '<th>' + this.bin[this.a - a - 1] + '</th>';
+    }
+    for (var b = 0; b < this.b; b++)
+    {
+      this.h += '<th>' + this.bin[this.b - b - 1] + '</th>';
+    }
+    this.h += '</tr>';
+    for (var row = 0; row < this.s.length; row++)
+    {
+      this.h += '<tr>';
+      for (var col = 0; col < this.n; col++)
+      {
+        var v = this.s[row][col];
+        this.h += '<td>' + v + '</td>';
+      }
+      this.h += '</tr>';
+    }
+    this.h += '</table>';
+    var out = document.getElementById("out");
+    out.innerHTML = this.h;
+    }
+    }
+
+    function run(str) {
+    var codes = str.split("\\n");
+    var len = codes.length;
+    var i;
+    for (i = 0; i < len; i++)
+    {
+    var code = codes[i].split(" ");
+    switch (code[0])
+    {
+    case "":
+    break;
+    case "lut":
+      var a = parseInt(code[1]);
+      c0 = new LUT(a);
+    break;
+    case "lin":
+      var a = parseInt(code[1]);
+      c0.in(a);
+    break;
+    case "lout":
+      var a = parseInt(code[1]);
+      c0.out(a);
+    break;
+    case "code":
+      var a = parseInt("0x" + code[1]);
+      var b = parseInt("0x" + code[2]);
+      c0.code(a, b);
+    break;
+    default:
+      alert(code[0]);
+    break;
+    }
+    }
+    c0.table();
+    }
+
+    export function init(ctx, html) {
+      ctx.importCSS("main.css");
+      const out0 = document.createElement("div");
+    out0.id = "out";
+    out0.style.width = "100%";
+    out0.style.height = "300px";
+    ctx.root.appendChild(out0);
+      run(html);
+    }
+    """
+  end
+
+  asset "main.css" do
+    """
+    table {
+      border-collapse: collapse;
+    }
+    td,th {
+      width: 30px;
+      border: 1px solid #000;
+    }
+    td {
+      text-align: center;
+    }
+    th {
+      background-color: #ccc;
+    }
+    """
+  end
+end
+
+KinoOhi.Lut.new("""
+lut 4
+lin 3
+lout 1
+code 0 0
+code 1 0
+code 2 0
+code 3 1
+code 4 0
+code 5 0
+code 6 1
+code 7 0
+""")
+```
+
+```elixir
+defmodule KinoOhi.Asm do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    function n2s(n) {
+    var s = String.fromCharCode(n + 97);
+    return s;
+    }
+    function run(str) {
+    var in0 = "";
+    var in1 = "";
+    var in2 = "";
+    var out0 = "";
+    var make0 = "    x u(";
+    var make1 = "    initial\\n    begin\\n        $display(\\"";
+    var make2 = "        $monitor(\\"";
+    var make3 = "";
+    var u = "";
+    //var str = src.value;
+    var codes = str.split("\\n");  
+    var len = codes.length;
+    var i, 
+    j;
+    for (i = 0; i < len; i++)
+    {
+    var code = codes[i].split(" ");
+    switch (code[0])
+    {
+    case "":
+    break;
+    case "wire":
+    break;
+    case "make":
+    break;
+    case "in":
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      switch (b)
+      {
+      case 0:
+        in2 = 
+          "        a = 0; #10;\\n" +
+          "        a = 1; #10;\\n";
+      break;
+      case 1:
+        in2 = 
+          "        a = 0; b = 0; #10;\\n" +
+          "        a = 0; b = 1; #10;\\n" +
+          "        a = 1; b = 0; #10;\\n" +
+          "        a = 1; b = 1; #10;\\n";
+      break;
+      case 2:
+        in2 = 
+          "        a = 0; b = 0; c = 0; #10;\\n" +
+          "        a = 0; b = 0; c = 1; #10;\\n" +
+          "        a = 0; b = 1; c = 0; #10;\\n" +
+          "        a = 0; b = 1; c = 1; #10;\\n" +
+          "        a = 1; b = 0; c = 0; #10;\\n" +
+          "        a = 1; b = 0; c = 1; #10;\\n" +
+          "        a = 1; b = 1; c = 0; #10;\\n" +
+          "        a = 1; b = 1; c = 1; #10;\\n";
+      break;
+      case 3:
+        in2 = 
+          "        a = 0; b = 0; c = 0; d = 0; #10;\\n" +
+          "        a = 0; b = 0; c = 0; d = 1; #10;\\n" +
+          "        a = 0; b = 0; c = 1; d = 0; #10;\\n" +
+          "        a = 0; b = 0; c = 1; d = 1; #10;\\n" +
+          "        a = 0; b = 1; c = 0; d = 0; #10;\\n" +
+          "        a = 0; b = 1; c = 0; d = 1; #10;\\n" +
+          "        a = 0; b = 1; c = 1; d = 0; #10;\\n" +
+          "        a = 0; b = 1; c = 1; d = 1; #10;\\n" +
+          "        a = 1; b = 0; c = 0; d = 0; #10;\\n" +
+          "        a = 1; b = 0; c = 0; d = 1; #10;\\n" +
+          "        a = 1; b = 0; c = 1; d = 0; #10;\\n" +
+          "        a = 1; b = 0; c = 1; d = 1; #10;\\n" +
+          "        a = 1; b = 1; c = 0; d = 0; #10;\\n" +
+          "        a = 1; b = 1; c = 0; d = 1; #10;\\n" +
+          "        a = 1; b = 1; c = 1; d = 0; #10;\\n" +
+          "        a = 1; b = 1; c = 1; d = 1; #10;\\n";
+      break;
+      case 4:
+        in2 = 
+          "        a = 0; b = 0; c = 0; d = 0; e = 0; #10;\\n" +
+          "        a = 0; b = 0; c = 0; d = 0; e = 1; #10;\\n" +
+          "        a = 0; b = 0; c = 0; d = 1; e = 0; #10;\\n" +
+          "        a = 0; b = 0; c = 0; d = 1; e = 1; #10;\\n" +
+          "        a = 0; b = 0; c = 1; d = 0; e = 0; #10;\\n" +
+          "        a = 0; b = 0; c = 1; d = 0; e = 1; #10;\\n" +
+          "        a = 0; b = 0; c = 1; d = 1; e = 0; #10;\\n" +
+          "        a = 0; b = 0; c = 1; d = 1; e = 1; #10;\\n" +
+          "        a = 0; b = 1; c = 0; d = 0; e = 0; #10;\\n" +
+          "        a = 0; b = 1; c = 0; d = 0; e = 1; #10;\\n" +
+          "        a = 0; b = 1; c = 0; d = 1; e = 0; #10;\\n" +
+          "        a = 0; b = 1; c = 0; d = 1; e = 1; #10;\\n" +
+          "        a = 0; b = 1; c = 1; d = 0; e = 0; #10;\\n" +
+          "        a = 0; b = 1; c = 1; d = 0; e = 1; #10;\\n" +
+          "        a = 0; b = 1; c = 1; d = 1; e = 0; #10;\\n" +
+          "        a = 0; b = 1; c = 1; d = 1; e = 1; #10;\\n" +
+          "        a = 1; b = 0; c = 0; d = 0; e = 0; #10;\\n" +
+          "        a = 1; b = 0; c = 0; d = 0; e = 1; #10;\\n" +
+          "        a = 1; b = 0; c = 0; d = 1; e = 0; #10;\\n" +
+          "        a = 1; b = 0; c = 0; d = 1; e = 1; #10;\\n" +
+          "        a = 1; b = 0; c = 1; d = 0; e = 0; #10;\\n" +
+          "        a = 1; b = 0; c = 1; d = 0; e = 1; #10;\\n" +
+          "        a = 1; b = 0; c = 1; d = 1; e = 0; #10;\\n" +
+          "        a = 1; b = 0; c = 1; d = 1; e = 1; #10;\\n" +
+          "        a = 1; b = 1; c = 0; d = 0; e = 0; #10;\\n" +
+          "        a = 1; b = 1; c = 0; d = 0; e = 1; #10;\\n" +
+          "        a = 1; b = 1; c = 0; d = 1; e = 0; #10;\\n" +
+          "        a = 1; b = 1; c = 0; d = 1; e = 1; #10;\\n" +
+          "        a = 1; b = 1; c = 1; d = 0; e = 0; #10;\\n" +
+          "        a = 1; b = 1; c = 1; d = 0; e = 1; #10;\\n" +
+          "        a = 1; b = 1; c = 1; d = 1; e = 0; #10;\\n" +
+          "        a = 1; b = 1; c = 1; d = 1; e = 1; #10;\\n";        
+      break;
+      }
+      b++;
+      for (j = 0; j < b; j++)
+      {
+        make0 += "." + n2s(j) + "(" + n2s(j) + "), ";
+        make1 += n2s(j) + " ";
+        make2 += "%b ";
+        make3 += n2s(j) + ", ";
+      }
+      for (j = a; j < b; j++)
+      {
+        in0 += "input " + n2s(j) + ", ";
+        in1 += n2s(j) + ", ";
+      }
+    in1 = in1.substr(0, in1.length - 2);
+    break;
+    case "out":
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      b++;
+      for (j = a; j < b; j++)
+      {
+        out0 += "output " + n2s(j) + ", ";
+        make0 += "." + n2s(j) + "(" + n2s(j) + "), ";
+        make1 += n2s(j) + " ";
+        make2 += "%b ";
+        make3 += n2s(j) + ", ";
+      }
+    out0 = out0.substr(0, out0.length - 2);
+    	make0 = make0.substr(0, make0.length - 2);
+    	make3 = make3.substr(0, make3.length - 2);
+      make0 += ");\\n";
+      make1 += "\\");\\n";
+      make2 += "\\", ";
+      make3 += ");\\n";
+    break;
+    case "nand":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      u += "    assign " + n2s(c) + " = ~(" + n2s(a) + " & " + n2s(b) + ");\\n";
+    break;
+    case "xor":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      u += "    assign " + n2s(c) + " = " + n2s(a) + " ^ " + n2s(b) + ";\\n";
+    break;
+    case "and":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      u += "    assign " + n2s(c) + " = " + n2s(a) + " & " + n2s(b) + ";\\n";
+    break;
+    case "or":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      u += "    assign " + n2s(c) + " = " + n2s(a) + " | " + n2s(b) + ";\\n";
+    break;
+    case "nor":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      var c = parseInt(code[3]);
+      u += "    assign " + n2s(c) + " = ~(" + n2s(a) + " | " + n2s(b) + ");\\n";
+    break;
+    case "not":  
+      var a = parseInt(code[1]);
+      var b = parseInt(code[2]);
+      u += "    assign " + n2s(b) + " = ~(" + n2s(a) + ");\\n";
+    break;
+    default:
+      alert(code[0]);
+    break;
+    }
+    }
+    var out = document.getElementById("out");
+    out.value = "module x(" + in0 + out0 + ");\\n" +
+    u +
+    "endmodule\\n\\n" +
+    "module testbench;\\n" +
+    "    reg " + in1 + ";\\n" +
+    make0 + make1 + make2 + make3 +
+    in2 +
+    "        $finish;\\n" +
+    "    end\\n" +
+    "endmodule";
+    }
+
+    export function init(ctx, html) {
+      const out0 = document.createElement("textarea");
+      out0.id = "out";
+      out0.style.width = "90%";
+      out0.style.height = "360px";
+      ctx.root.appendChild(out0);
+      run(html);
+    }
+    """
+  end
+end
+
+KinoOhi.Asm.new("""
+make 10
+in 0 2
+wire 3 8
+out 9 9
+not 2 3
+and 0 1 4
+and 1 2 5
+not 0 6
+and 3 4 7
+and 5 6 8
+or 7 8 9
+""")
+```
+
+```elixir
+defmodule KinoOhi.Asm2 do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    function run(str) {
+    var in0 = "";
+    var in1 = "";
+    var out0 = "";
+    var out1 = "";
+    var m = "";
+    var u = "";
+    //var str = src.value;
+    var codes = str.split("\\n");  
+    var len = codes.length;
+    var i, 
+    j;
+    for (i = 0; i < len; i++)
+    {
+    var code = codes[i].split(" ");
+    switch (code[0])
+    {
+    case "":
+    break;
+    case "lut":
+    break;
+    case "lin":
+      var a = parseInt(code[1]) - 1;
+      in0 = "input wire [" + a + ":0] data,";
+      in1 = "\\treg [" + a + ":0] data;\\n";
+    break;
+    case "lout":
+      var a = parseInt(code[1]) - 1;
+      out0 = " output reg [" + a + ":0] code";
+      out1 = "\\twire [" + a + ":0] code;\\n";
+    break;
+    case "code":  
+      var a = code[1];
+      var b = code[2];
+      u += "\\t\\t4'h" + a + ":\\n\\t\\t\\tcode = 8'h" + b + ";\\n";
+      m += "\\t\\tdata = 4'h" + a + "; #10;\\n";
+    break;
+    default:
+      alert(code[0]);
+    break;
+    }
+    }
+    var out = document.getElementById("out");
+    out.value = "module lut(" + in0 + out0 + ");\\n" +
+    "\\talways @(data)\\n" +
+    "\\tbegin\\n" +
+    "\\t\\tcase(data)\\n" +
+    u +
+    "\\t\\tendcase\\n" +
+    "\\tend\\n" +
+    "endmodule\\n\\n" +
+    "module testbench;\\n" +
+    in1 + 
+    out1 +
+    "\\tlut u(.data(data), .code(code));\\n" +
+    "\\tinitial\\n" +
+    "\\tbegin\\n" +
+    '\\t\\t$display("data code");\\n' +
+    '\\t\\t$monitor("%h  %b", data, code);\\n' +
+    m +
+    "\\t\\t$finish;\\n" +
+    "\\tend\\n" +
+    "endmodule";
+    }
+    export function init(ctx, html) {
+      const out0 = document.createElement("textarea");
+      out0.id = "out";
+      out0.style.width = "90%";
+      out0.style.height = "550px";
+      ctx.root.appendChild(out0);
+      run(html);
+    }
+    """
+  end
+end
+
+KinoOhi.Asm2.new("""
+lut 4
+lin 3
+lout 1
+code 0 0
+code 1 0
+code 2 0
+code 3 1
+code 4 0
+code 5 0
+code 6 1
+code 7 0
+""")
+```
