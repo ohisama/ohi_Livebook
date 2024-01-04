@@ -1,0 +1,103 @@
+# Evision
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3"},
+  {:evision, "~> 0.1"},
+  {:kino, "~> 0.10.0"},
+  {:nx, "~> 0.6"}
+])
+```
+
+## 画像のダウンロード、表示
+
+```elixir
+img =
+  "https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png"
+  |> Req.get!()
+  |> Map.get(:body)
+  |> Evision.imdecode(Evision.Constant.cv_IMREAD_COLOR())
+```
+
+## リサイズ
+
+```elixir
+img
+|> Evision.resize({600, 400})
+```
+
+## グレースケール
+
+```elixir
+img
+|> Evision.cvtColor(Evision.Constant.cv_COLOR_BGR2GRAY())
+```
+
+## ぼかし
+
+```elixir
+img
+|> Evision.blur({15, 15})
+```
+
+## 図形描画
+
+```elixir
+img
+|> Evision.rectangle({150, 120}, {225, 320}, {0, 0, 255},
+  thickness: 12,
+  lineType: Evision.Constant.cv_LINE_4()
+)
+```
+
+## 文字描画
+
+```elixir
+img
+|> Evision.putText(
+  "ohi",
+  {250, 200},
+  Evision.Constant.cv_FONT_HERSHEY_SIMPLEX(),
+  2.5,
+  {0, 255, 0},
+  thickness: 5
+)
+```
+
+## 一連処理
+
+```elixir
+img
+|> Evision.resize({600, 400})
+|> Evision.cvtColor(Evision.Constant.cv_COLOR_BGR2GRAY())
+|> Evision.blur({15, 15})
+|> Evision.rectangle({150, 120}, {225, 320}, {0, 0, 255},
+  thickness: 12,
+  lineType: Evision.Constant.cv_LINE_4()
+)
+|> Evision.putText(
+  "ohi",
+  {250, 200},
+  Evision.Constant.cv_FONT_HERSHEY_SIMPLEX(),
+  2.5,
+  {0, 0, 255},
+  thickness: 5
+)
+|> dbg()
+```
+
+## nxに変換
+
+
+
+```elixir
+nximg =
+  img
+  |> Evision.cvtColor(Evision.Constant.cv_COLOR_BGR2RGB())
+  |> Evision.Mat.to_nx()
+```
+
+```elixir
+nximg
+|> Kino.Image.new()
+```

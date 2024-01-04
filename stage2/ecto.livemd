@@ -76,3 +76,10 @@ query = from(u in User, where: u.age >= ^min_age and u.age <= ^max_age)
 Repo.all(query)
 |> Kino.DataTable.new()
 ```
+
+```elixir
+query = from(u in User)
+
+Repo.all(query)
+|> Kino.DataTable.new()
+```

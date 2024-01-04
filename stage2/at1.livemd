@@ -1,0 +1,163 @@
+# abc245 b
+
+```elixir
+Mix.install([
+  {:httpoison, "~> 2.2.1"},
+  {:floki, "~> 0.35.2"},
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+contest_name = Kino.Input.text("コンテスト名")
+problem_name = Kino.Input.text("問題名")
+nyuusyu = Kino.Control.button("問題文入手")
+
+Kino.listen(nyuusyu, fn _event ->
+  url =
+    "https://atcoder.jp/contests/#{Kino.Input.read(contest_name)}/tasks/#{Kino.Input.read(contest_name)}_#{Kino.Input.read(problem_name)}"
+
+  doc = HTTPoison.get!(url)
+  {:ok, html} = Floki.parse_document(doc.body)
+  section_list = Floki.find(html, "section")
+
+  section_list
+  |> Enum.filter(fn {_, _, x} ->
+    String.starts_with?(Floki.text(x), "問題文")
+  end)
+  |> Enum.map(fn {_, _, x} ->
+    Floki.text(x)
+  end)
+  |> IO.inspect()
+end)
+
+Kino.Layout.grid([contest_name, problem_name, nyuusyu], columns: 1)
+```
+
+```elixir
+defmodule Main do
+  alias MyIO, as: IO
+
+  def next_token(acc \\ "") do
+    case IO.getn(:stdio, "", 1) do
+      " " ->
+        acc
+
+      "\n" ->
+        acc
+
+      x ->
+        next_token(acc <> x)
+    end
+  end
+
+  def input(), do: IO.read(:line) |> String.trim()
+  def ii(), do: next_token() |> String.to_integer()
+  def li(), do: input() |> String.split(" ") |> Enum.map(&String.to_integer/1)
+
+  defp find(map), do: 0..2000 |> Enum.find(&(!map[&1]))
+
+  defp solve(list) do
+    list
+    |> Enum.reduce(%{}, &Map.put(&2, &1, true))
+    |> find()
+  end
+
+  def main() do
+    ii()
+
+    li()
+    |> solve()
+    |> IO.puts()
+  end
+end
+
+defmodule MyIO do
+  def read(_device \\ nil, option) do
+    {file_in, _} = Application.get_env(:my_app, :file, {:stdio, :stdio})
+    IO.read(file_in, option)
+  end
+
+  def puts(_device \\ nil, item) do
+    {_, file_out} = Application.get_env(:my_app, :file, {:stdio, :stdio})
+    IO.puts(file_out, item)
+  end
+
+  def getn(_device \\ nil, a, b) do
+    {_, file_out} = Application.get_env(:my_app, :file, {:stdio, :stdio})
+    IO.getn(file_out, a, b)
+  end
+end
+
+defmodule Judge do
+  def judge(string_in, string_out) do
+    {:ok, file} = StringIO.open(string_in)
+    Application.put_env(:my_app, :file, {file, file})
+    Main.main()
+    {:ok, {_, result}} = StringIO.close(file)
+
+    if string_out == result do
+      IO.puts("OK")
+      true
+    else
+      IO.inspect(string_in, label: "Input")
+      IO.inspect(string_out, label: "Expected")
+      IO.inspect(result, label: "Received")
+      false
+    end
+  end
+end
+```
+
+```elixir
+judge_all = Kino.Control.button("入力例で実行")
+
+Kino.listen(judge_all, fn _event ->
+  url =
+    "https://atcoder.jp/contests/#{Kino.Input.read(contest_name)}/tasks/#{Kino.Input.read(contest_name)}_#{Kino.Input.read(problem_name)}"
+
+  doc = HTTPoison.get!(url)
+  {:ok, html} = Floki.parse_document(doc.body)
+  section_list = Floki.find(html, "section")
+
+  pre_in =
+    section_list
+    |> Enum.filter(fn {_, _, [hd | _]} ->
+      String.starts_with?(Floki.text(hd), "入力例")
+    end)
+    |> Enum.map(fn {_, _, [_hd | tail]} ->
+      Floki.text(hd(tail))
+    end)
+    |> Enum.map(fn x ->
+      String.replace(x, "\r\n", "\n")
+    end)
+
+  pre_out =
+    section_list
+    |> Enum.filter(fn {_, _, [hd | _]} ->
+      String.starts_with?(Floki.text(hd), "出力例")
+    end)
+    |> Enum.map(fn {_, _, [_hd | tail]} ->
+      Floki.text(hd(tail))
+    end)
+    |> Enum.map(fn x ->
+      String.replace(x, "\r\n", "\n")
+    end)
+
+  {pre_in, pre_out}
+  |> IO.inspect()
+
+  n =
+    for {{sample_in, sample_out}, n} <- Enum.zip([pre_in, pre_out]) |> Enum.with_index() do
+      IO.puts("-- TEST #{n} --")
+      Judge.judge(sample_in, sample_out)
+    end
+    |> Enum.count()
+
+  "Passed #{n} of #{length(pre_in)}"
+end)
+
+Kino.Layout.grid([judge_all], columns: 1)
+```

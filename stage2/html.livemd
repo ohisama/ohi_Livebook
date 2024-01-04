@@ -249,3 +249,111 @@ KinoHTML.Tchart.new("""
 }
 """)
 ```
+
+```elixir
+defmodule KinoHTML.Pdf do
+  use Kino.JS
+
+  def new(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    import "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    class MyPdf {
+      constructor(canvas, afterRendered) {
+        this.canvas = canvas
+        this.context = this.canvas.getContext('2d')
+        this.pageNumber = 1
+        this.rendering = false
+        this.afterRendered = afterRendered
+      }
+      setAfterRendered(afterRendered) {
+        this.afterRendered = afterRendered
+      }
+      loadDocument(path) {
+        alert("ok0")
+        const renderPdf = (pdf) => {
+          this.pdf = pdf
+          this.getPage()
+        }
+        alert("ok1")
+        pdfjsLib.getDocument(path).promise.then(renderPdf)
+      }
+      setPage(pageNumber) {
+        if (1 <= pageNumber && pageNumber <= this.pdf.numPages && !this.rendering) 
+        {
+          this.pageNumber = pageNumber
+          this.getPage()
+        }
+      }
+      nextPage() {
+        this.setPage(this.pageNumber + 1)
+      }
+      prevPage() {
+        this.setPage(this.pageNumber - 1)
+      }
+      getPage() {
+        if (!this.rendering) 
+        {
+          this.rendering = true
+          this.pdf.getPage(this.pageNumber).then(this.renderPage.bind(this))
+        }
+      }
+      renderPage(page) {
+        const viewport = page.getViewport({scale: 1})
+        this.canvas.height = 400
+        this.canvas.width = 400
+        page.render({ canvasContext: this.context, viewport }).promise.then(() => {
+          if (this.afterRendered) 
+          { 
+            this.afterRendered(this.pdf.numPages, this.pageNumber) 
+          }
+          this.rendering = false
+        })
+      }
+    }
+
+    export function init(ctx, html) {
+
+      const btn0 = document.createElement("button");
+      btn0.id = "prev";
+      btn0.innerHTML = "<<";
+      ctx.root.appendChild(btn0);
+
+      const out0 = document.createElement("span");
+      out0.id = "page";
+      out0.innerText = "100";
+      ctx.root.appendChild(out0);
+
+      const btn1 = document.createElement("button");
+      btn1.id = "next";
+      btn1.innerHTML = ">>";
+      ctx.root.appendChild(btn1);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 400;
+      canvas.height = 400;
+      canvas.id = 'the-canvas';
+      ctx.root.appendChild(canvas);
+
+      const myPdf = new MyPdf(document.getElementById('the-canvas'))
+      myPdf.setAfterRendered((numPages, pageNumber) => {
+         document.getElementById('page').innerText = `${pageNumber} / ${numPages}`
+      })
+      document.getElementById('next').addEventListener('click', myPdf.nextPage.bind(myPdf))
+      document.getElementById('prev').addEventListener('click', myPdf.prevPage.bind(myPdf))
+      myPdf.loadDocument(html)
+      alert(pdfjsLib)
+    }
+    """
+  end
+end
+
+KinoHTML.Pdf.new("test2.pdf")
+```

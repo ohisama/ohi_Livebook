@@ -1,0 +1,57 @@
+# layout
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.4"},
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+img = fn color ->
+  color
+  |> Nx.tensor(type: :u8)
+  |> Nx.tile([50, 50, 1])
+  |> Kino.Image.new()
+end
+```
+
+```elixir
+[
+  img.([255, 0, 0]),
+  img.([0, 255, 0]),
+  img.([0, 0, 255]),
+  img.([255, 255, 0]),
+  img.([255, 0, 255]),
+  img.([0, 255, 255])
+]
+|> Kino.Layout.grid(columns: 3)
+```
+
+```elixir
+[
+  Red: img.([255, 0, 0]),
+  Green: img.([0, 255, 0]),
+  Blue: img.([0, 0, 255])
+]
+|> Kino.Layout.tabs()
+```
+
+```elixir
+[
+  img.([255, 0, 0]),
+  img.([0, 0, 255]),
+  [
+    img.([255, 0, 0]),
+    img.([0, 0, 255]),
+    img.([0, 0, 255]),
+    img.([255, 0, 0])
+  ]
+  |> Kino.Layout.grid(columns: 2, gap: 10),
+  img.([0, 0, 255]),
+  img.([255, 0, 0])
+]
+|> Kino.Layout.grid(columns: 5, gap: 10)
+```

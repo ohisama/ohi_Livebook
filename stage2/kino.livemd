@@ -1,7 +1,10 @@
 # kino
 
 ```elixir
-Mix.install([{:kino, "~> 0.10.0"}])
+Mix.install([
+  {:kino, "~> 0.10.0"},
+  {:req, "~> 0.4.5"}
+])
 ```
 
 ## Section
@@ -148,4 +151,27 @@ loop = fn f ->
 end
 
 loop.(loo)
+```
+
+```elixir
+user1 = %{name: "alice", age: 15}
+user2 = %{name: "bob", age: 19}
+user3 = %{name: "carol", age: 23}
+
+users = [user1, user2, user3]
+
+users
+|> Kino.DataTable.new()
+```
+
+```elixir
+%Req.Response{status: 200, body: body} =
+  Req.get!("https://qiita.com/api/v2/users/ohisama@github/items")
+
+# |> Kino.Tree.new()
+# |> Map.get("body")
+
+# |> IO.inspect()
+body
+|> Kino.DataTable.new()
 ```

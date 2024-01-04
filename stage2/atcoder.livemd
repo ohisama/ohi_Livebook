@@ -1,0 +1,191 @@
+# atcoder abc331 a
+
+```elixir
+Mix.install([
+  {:httpoison, "~> 2.2.1"},
+  {:floki, "~> 0.35.2"},
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+contest_name = Kino.Input.text("コンテスト名")
+```
+
+```elixir
+problem_name = Kino.Input.text("問題名")
+```
+
+```elixir
+url =
+  "https://atcoder.jp/contests/#{Kino.Input.read(contest_name)}/tasks/#{Kino.Input.read(contest_name)}_#{Kino.Input.read(problem_name)}"
+
+doc = HTTPoison.get!(url)
+{:ok, html} = Floki.parse_document(doc.body)
+section_list = Floki.find(html, "section")
+
+pre_in =
+  section_list
+  |> Enum.filter(fn {_, _, [hd | _]} ->
+    String.starts_with?(Floki.text(hd), "入力例")
+  end)
+  |> Enum.map(fn {_, _, [_hd | tail]} ->
+    Floki.text(hd(tail))
+  end)
+  |> Enum.map(fn x ->
+    String.replace(x, "\r\n", "\n")
+  end)
+
+pre_out =
+  section_list
+  |> Enum.filter(fn {_, _, [hd | _]} ->
+    String.starts_with?(Floki.text(hd), "出力例")
+  end)
+  |> Enum.map(fn {_, _, [_hd | tail]} ->
+    Floki.text(hd(tail))
+  end)
+  |> Enum.map(fn x ->
+    String.replace(x, "\r\n", "\n")
+  end)
+
+{pre_in, pre_out}
+```
+
+```elixir
+defmodule Main do
+  alias MyIO, as: IO
+
+  def next_token(acc \\ "") do
+    case IO.getn(:stdio, "", 1) do
+      " " ->
+        acc
+
+      "\n" ->
+        acc
+
+      x ->
+        next_token(acc <> x)
+    end
+  end
+
+  def input(), do: IO.read(:line) |> String.trim()
+  def ii(), do: next_token() |> String.to_integer()
+  def li(), do: input() |> String.split(" ") |> Enum.map(&String.to_integer/1)
+
+  def next_day(y, m, d, end_of_day, _end_of_month) when d < end_of_day, do: {y, m, d + 1}
+
+  def next_day(y, m, d, end_of_day, end_of_month) when d == end_of_day,
+    do: next_month(y, m, end_of_month)
+
+  def next_month(y, m, end_of_month) when m < end_of_month, do: {y, m + 1, 1}
+  def next_month(y, m, end_of_month) when m == end_of_month, do: {y + 1, 1, 1}
+
+  def main() do
+    end_of_month = ii()
+    end_of_day = ii()
+    y = ii()
+    m = ii()
+    d = ii()
+    {y, m, d} = next_day(y, m, d, end_of_day, end_of_month)
+    IO.puts("#{y} #{m} #{d}")
+  end
+end
+
+defmodule MyIO do
+  def read(_device \\ nil, option) do
+    {file_in, _} = Application.get_env(:my_app, :file, {:stdio, :stdio})
+    IO.read(file_in, option)
+  end
+
+  def puts(_device \\ nil, item) do
+    {_, file_out} = Application.get_env(:my_app, :file, {:stdio, :stdio})
+    IO.puts(file_out, item)
+  end
+
+  def getn(_device \\ nil, a, b) do
+    {_, file_out} = Application.get_env(:my_app, :file, {:stdio, :stdio})
+    IO.getn(file_out, a, b)
+  end
+end
+```
+
+```elixir
+defmodule Judge do
+  def judge(string_in, string_out) do
+    {:ok, file} = StringIO.open(string_in)
+    Application.put_env(:my_app, :file, {file, file})
+
+    Main.main()
+    {:ok, {_, result}} = StringIO.close(file)
+
+    if string_out == result do
+      IO.puts("OK")
+      true
+    else
+      IO.inspect(string_in, label: "Input")
+      IO.inspect(string_out, label: "Expected")
+      IO.inspect(result, label: "Received")
+      false
+    end
+  end
+end
+```
+
+```elixir
+n =
+  for {{sample_in, sample_out}, n} <- Enum.zip([pre_in, pre_out]) |> Enum.with_index() do
+    IO.puts("-- TEST #{n} --")
+    Judge.judge(sample_in, sample_out)
+  end
+  |> Enum.count()
+
+"Passed #{n} of #{length(pre_in)}"
+```
+
+```elixir
+doc = HTTPoison.get!("https://atcoder.jp/contests/abc331/tasks/abc331_a")
+```
+
+```elixir
+{:ok, html} = Floki.parse_document(doc.body)
+html
+```
+
+```elixir
+section_list = Floki.find(html, "section")
+```
+
+```elixir
+pre_in =
+  section_list
+  |> Enum.filter(fn {_, _, [hd | _]} ->
+    String.starts_with?(Floki.text(hd), "入力例")
+  end)
+  |> Enum.map(fn {_, _, [_hd | tail]} ->
+    Floki.text(hd(tail))
+  end)
+
+pre_out =
+  section_list
+  |> Enum.filter(fn {_, _, [hd | _]} ->
+    String.starts_with?(Floki.text(hd), "出力例")
+  end)
+  |> Enum.map(fn {_, _, [_hd | tail]} ->
+    Floki.text(hd(tail))
+  end)
+
+{pre_in, pre_out}
+```
+
+```elixir
+section_list
+|> Enum.filter(fn {_, _, x} ->
+  String.starts_with?(Floki.text(x), "問題文")
+end)
+|> Enum.map(fn {_, _, x} ->
+  Floki.text(x)
+end)
+|> IO.inspect()
+```

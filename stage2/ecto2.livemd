@@ -1,0 +1,106 @@
+# ecto2
+
+```elixir
+Mix.install([
+  {:ecto_sql, "~> 3.9"},
+  {:ecto, "~> 3.9"},
+  {:kino, "~> 0.10.0"},
+  {:ecto_sqlite3, "~> 0.12"}
+])
+```
+
+## Section
+
+```elixir
+defmodule Person do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  schema "people" do
+    field(:name, :string)
+    field(:age, :integer)
+    timestamps()
+  end
+
+  def changeset(person, attrs) do
+    person
+    |> cast(attrs, [:name, :age])
+    |> validate_required([:name, :age])
+  end
+end
+```
+
+```elixir
+defmodule CreatePeople do
+  use Ecto.Migration
+
+  def change do
+    create table(:people) do
+      add(:name, :string)
+      add(:age, :integer)
+      timestamps()
+    end
+  end
+end
+```
+
+```elixir
+defmodule Repo do
+  use Ecto.Repo, adapter: Ecto.Adapters.SQLite3, otp_app: :nothing
+end
+```
+
+```elixir
+Repo.start_link(database: "test.db")
+```
+
+```elixir
+Ecto.Migrator.up(Repo, 1, CreatePeople)
+```
+
+```elixir
+now =
+  NaiveDateTime.utc_now()
+  |> NaiveDateTime.truncate(:second)
+
+entries =
+  [
+    %{name: "Bob", age: 20},
+    %{name: "John", age: 30},
+    %{name: "Ryo", age: 39}
+  ]
+  |> Enum.map(fn attr ->
+    Map.merge(attr, %{
+      inserted_at: now,
+      updated_at: now
+    })
+  end)
+
+Repo.insert_all(Person, entries)
+```
+
+```elixir
+Repo.all(Person)
+|> Kino.DataTable.new()
+```
+
+```elixir
+Person
+|> Repo.get_by!(name: "Ryo")
+|> Repo.delete()
+```
+
+```elixir
+%Person{name: "Ai", age: 55}
+|> Repo.insert!()
+```
+
+```elixir
+Person
+|> Repo.get!(4)
+|> Person.changeset(%{
+  name: "Ai",
+  age: 21
+})
+|> Repo.update()
+```

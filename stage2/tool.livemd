@@ -1,0 +1,31 @@
+# load save
+
+```elixir
+Mix.install([
+  {:toolshed, "~> 0.3.0"}
+])
+```
+
+## Section
+
+```elixir
+Toolshed.cmd("pwd")
+Toolshed.cmd("ls")
+```
+
+```elixir
+## load
+
+Toolshed.cat("test.txt")
+```
+
+```elixir
+## save
+
+"""
+hello world!!
+"""
+|> then(fn content ->
+  File.write("test.txt", content)
+end)
+```

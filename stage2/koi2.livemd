@@ -450,7 +450,6 @@ defmodule KinoOhi.Asm do
     var make2 = "        $monitor(\\"";
     var make3 = "";
     var u = "";
-    //var str = src.value;
     var codes = str.split("\\n");  
     var len = codes.length;
     var i, 

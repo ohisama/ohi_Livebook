@@ -1,0 +1,148 @@
+# db
+
+```elixir
+Mix.install([
+  {:jason, "~> 1.4"},
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+defmodule Ecto2 do
+  def insert(db, v) do
+    db = db ++ [v]
+  end
+
+  def update(db, v) do
+    i =
+      Enum.filter_map(
+        Enum.with_index(db),
+        fn {x, _} ->
+          x.id == v.id
+        end,
+        fn {_, i} ->
+          i
+        end
+      )
+      |> Enum.at(0)
+
+    db = List.replace_at(db, i, v)
+  end
+
+  def delete(db, v) do
+    db = List.delete(db, v)
+  end
+
+  def print(db) do
+    Enum.map(db, fn x ->
+      [x.id, x.name]
+    end)
+    |> IO.inspect()
+  end
+
+  def load(db) do
+    File.read!("db.json")
+    |> Jason.decode!(keys: :atoms)
+  end
+
+  def save(db) do
+    json = Jason.encode!(db)
+    File.write!("db.json", json)
+  end
+end
+```
+
+```elixir
+now =
+  NaiveDateTime.utc_now()
+  |> NaiveDateTime.truncate(:second)
+
+db = [
+  %{
+    id: 1,
+    name: "ryu",
+    age: 10,
+    gaku: "s",
+    inserted_at: ~N[2023-10-31 05:35:23],
+    updated_at: ~N[2023-11-30 05:35:37]
+  },
+  %{
+    id: 2,
+    name: "ryo",
+    age: 20,
+    gaku: "s",
+    inserted_at: ~N[2023-10-31 05:35:23],
+    updated_at: ~N[2023-11-30 05:35:37]
+  },
+  %{
+    id: 3,
+    name: "alice",
+    age: 20,
+    gaku: "s",
+    inserted_at: ~N[2023-10-31 05:35:23],
+    updated_at: ~N[2023-11-30 05:35:37]
+  },
+  %{
+    id: 4,
+    name: "kent",
+    age: 30,
+    gaku: "s",
+    inserted_at: ~N[2023-10-31 05:35:23],
+    updated_at: ~N[2023-11-30 05:35:37]
+  }
+]
+
+# Ecto2.save(db)
+db = Ecto2.load(db)
+# Kino.DataTable.new(db)
+```
+
+```elixir
+Ecto2.print(db)
+
+db =
+  Ecto2.insert(db, %{
+    id: 5,
+    name: "kent",
+    age: 30,
+    gaku: "s",
+    inserted_at: now,
+    updated_at: now
+  })
+
+Ecto2.print(db)
+
+Kino.DataTable.new(db)
+```
+
+```elixir
+db =
+  Ecto2.delete(db, %{
+    id: 5,
+    name: "kent",
+    age: 30,
+    gaku: "s",
+    inserted_at: now,
+    updated_at: now
+  })
+
+Ecto2.print(db)
+Kino.DataTable.new(db)
+```
+
+```elixir
+db =
+  Ecto2.update(db, %{
+    id: 1,
+    name: "yoko",
+    age: 30,
+    gaku: "s",
+    inserted_at: now,
+    updated_at: now
+  })
+
+Ecto2.print(db)
+Kino.DataTable.new(db)
+```

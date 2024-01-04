@@ -25,7 +25,7 @@ my_data =
   |> Enum.map(&Map.take(&1, ["title", "url"]))
 ```
 
-<!-- livebook:{"attrs":{"assign_to":null,"collect":false,"data_frame":"my_data","data_frame_alias":"Elixir.Explorer.DataFrame","is_data_frame":false,"lazy":true,"missing_require":"Elixir.Explorer.DataFrame","operations":[{"active":true,"column":null,"data_options":{"title":"string","url":"string"},"datalist":[],"filter":null,"operation_type":"filters","type":"string","value":null}]},"chunks":null,"kind":"Elixir.KinoExplorer.DataTransformCell","livebook_object":"smart_cell"} -->
+<!-- livebook:{"attrs":{"assign_to":null,"collect":false,"data_frame":"my_data","data_frame_alias":"Elixir.Explorer.DataFrame","is_data_frame":false,"missing_require":"Elixir.Explorer.DataFrame","operations":[{"active":true,"column":null,"data_options":{"title":"string","url":"string"},"datalist":[],"filter":null,"operation_type":"filters","type":"string","value":null}]},"chunks":null,"kind":"Elixir.KinoExplorer.DataTransformCell","livebook_object":"smart_cell"} -->
 
 ```elixir
 require Explorer.DataFrame
@@ -37,4 +37,12 @@ Req.get!("https://checkip.amazonaws.com")
 |> Map.get(:body)
 
 # |> IO.inspect()
+```
+
+```elixir
+Req.get!("https://qiita.com/api/v2/users/ohisama@github/items")
+# |> IO.inspect()
+|> Map.get(:body)
+|> Enum.map(&Map.take(&1, ["title", "url"]))
+|> Kino.DataTable.new()
 ```
