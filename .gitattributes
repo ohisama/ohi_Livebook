@@ -1,2 +1,1 @@
-*.livemd linguist-detectable=true
-*.livemd linguist-language=Elixir
+*.livemd linguist-vendored=true
