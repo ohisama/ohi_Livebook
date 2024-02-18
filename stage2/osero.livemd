@@ -1,0 +1,666 @@
+# osero
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.10.0"}
+])
+```
+
+## Section
+
+```elixir
+defmodule Str do
+  use Agent
+
+  def start_link() do
+    Agent.start_link(
+      fn ->
+        ""
+      end,
+      name: __MODULE__
+    )
+  end
+
+  def get() do
+    Agent.get(__MODULE__, fn v ->
+      v
+    end)
+  end
+
+  def cls() do
+    Agent.update(__MODULE__, fn v ->
+      ""
+    end)
+  end
+
+  def add(s) do
+    Agent.update(__MODULE__, fn v ->
+      v <> s
+    end)
+  end
+end
+
+defmodule Vb do
+  use Agent
+
+  def start_link() do
+    Agent.start_link(
+      fn ->
+        0
+      end,
+      name: __MODULE__
+    )
+  end
+
+  def get() do
+    Agent.get(__MODULE__, fn v ->
+      v
+    end)
+  end
+
+  def cls() do
+    Agent.update(__MODULE__, fn v ->
+      0
+    end)
+  end
+
+  def set() do
+    Agent.update(__MODULE__, fn v ->
+      1
+    end)
+  end
+end
+
+defmodule Ban do
+  use Agent
+
+  def start_link() do
+    Agent.start_link(
+      fn ->
+        [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          2,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          2,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      end,
+      name: __MODULE__
+    )
+  end
+
+  def init() do
+    Agent.update(__MODULE__, fn v ->
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    end)
+  end
+
+  def get() do
+    Agent.get(__MODULE__, fn v ->
+      v
+    end)
+  end
+
+  def get(p) do
+    Agent.get(__MODULE__, fn v ->
+      Enum.at(v, p)
+    end)
+  end
+
+  def set(p, x) do
+    Agent.update(__MODULE__, fn v ->
+      List.update_at(v, p, fn _ ->
+        x
+      end)
+    end)
+  end
+end
+
+defmodule Isi do
+  use Agent
+
+  def start_link() do
+    Agent.start_link(
+      fn ->
+        []
+      end,
+      name: __MODULE__
+    )
+  end
+
+  def get() do
+    Agent.get(__MODULE__, fn v ->
+      v
+    end)
+  end
+
+  def len() do
+    Agent.get(__MODULE__, fn v ->
+      Enum.reduce(v, 0, fn x, n ->
+        n + 1
+      end)
+    end)
+  end
+
+  def cls() do
+    Agent.update(__MODULE__, fn v ->
+      []
+    end)
+  end
+
+  def put(x) do
+    Agent.update(__MODULE__, fn v ->
+      v ++ [x]
+    end)
+  end
+end
+```
+
+```elixir
+defmodule Osero do
+  def ban() do
+    Str.cls()
+    Str.add("| | 1| 2| 3| 4| 5| 6| 7| 8|\n")
+    Str.add("|--|--|--|--|--|--|--|--|--|\n")
+
+    Ban.get()
+    |> Enum.reduce(1, fn x, n ->
+      if rem(n, 8) == 1 do
+        Str.add("| #{floor(n / 8) + 1}")
+      end
+
+      case x do
+        0 ->
+          Str.add("| o")
+
+        2 ->
+          Str.add("| x")
+
+        _ ->
+          Str.add("|  ")
+      end
+
+      if rem(n, 8) == 0 do
+        Str.add("|\n")
+      end
+
+      n + 1
+    end)
+
+    Str.get()
+    |> Kino.Markdown.new()
+  end
+
+  def check(p, d) do
+    x = rem(p, 8)
+    y = floor(p / 8)
+
+    cond do
+      x == 0 && (d == -9 || d == -1 || d == 7) ->
+        false
+
+      x == 7 && (d == -7 || d == 1 || d == 9) ->
+        false
+
+      y == 0 && (d == -9 || d == -8 || d == -7) ->
+        false
+
+      y == 7 && (d == 7 || d == 8 || d == 9) ->
+        false
+
+      true ->
+        true
+    end
+  end
+
+  def kuro(p, x) do
+    Isi.cls()
+    Isi.put(p)
+    p = p + x
+
+    if check(p, x) && Ban.get(p) == 0 do
+      Isi.put(p)
+      p = p + x
+
+      cond do
+        check(p, x) && Ban.get(p) == 0 ->
+          Isi.put(p)
+          p = p + x
+
+          cond do
+            check(p, x) && Ban.get(p) == 0 ->
+              Isi.put(p)
+              p = p + x
+
+              cond do
+                check(p, x) && Ban.get(p) == 0 ->
+                  Isi.put(p)
+                  p = p + x
+
+                  cond do
+                    check(p, x) && Ban.get(p) == 0 ->
+                      Isi.put(p)
+                      p = p + x
+
+                      cond do
+                        check(p, x) && Ban.get(p) == 0 ->
+                          true
+
+                        check(p, x) && Ban.get(p) == 2 ->
+                          Vb.set()
+
+                          Enum.map(Isi.get(), fn y ->
+                            Ban.set(y, 2)
+                          end)
+
+                        true ->
+                          true
+                      end
+
+                    check(p, x) && Ban.get(p) == 2 ->
+                      Vb.set()
+
+                      Enum.map(Isi.get(), fn y ->
+                        Ban.set(y, 2)
+                      end)
+
+                    true ->
+                      true
+                  end
+
+                check(p, x) && Ban.get(p) == 2 ->
+                  Vb.set()
+
+                  Enum.map(Isi.get(), fn y ->
+                    Ban.set(y, 2)
+                  end)
+
+                true ->
+                  true
+              end
+
+              true
+
+            check(p, x) && Ban.get(p) == 2 ->
+              Vb.set()
+
+              Enum.map(Isi.get(), fn y ->
+                Ban.set(y, 2)
+              end)
+
+            true ->
+              true
+          end
+
+        check(p, x) && Ban.get(p) == 2 ->
+          Vb.set()
+
+          Enum.map(Isi.get(), fn y ->
+            Ban.set(y, 2)
+          end)
+
+        true ->
+          true
+      end
+    end
+  end
+
+  def oku(m) do
+    s = String.split(m, " ")
+
+    {x, _} =
+      Enum.at(s, 0)
+      |> Integer.parse()
+
+    {y, _} =
+      Enum.at(s, 1)
+      |> Integer.parse()
+
+    p = y * 8 + x - 9
+
+    if Ban.get(p) == 1 do
+      [-9, 9, -7, 7, -1, 1, -8, 8]
+      |> Enum.map(fn x ->
+        k = kuro(p, x)
+      end)
+    end
+
+    # ban()
+    # sasu()
+    ban()
+  end
+
+  def siro(p, x) do
+    Str.cls()
+    Str.add("#{rem(p, 8) + 1} #{floor(p / 8) + 1} \n")
+    Isi.cls()
+    Isi.put(p)
+    p = p + x
+
+    if check(p, x) && Ban.get(p) == 2 do
+      Isi.put(p)
+      p = p + x
+
+      cond do
+        check(p, x) && Ban.get(p) == 2 ->
+          Isi.put(p)
+          p = p + x
+
+          cond do
+            check(p, x) && Ban.get(p) == 2 ->
+              Isi.put(p)
+              p = p + x
+
+              cond do
+                check(p, x) && Ban.get(p) == 2 ->
+                  Isi.put(p)
+                  p = p + x
+
+                  cond do
+                    check(p, x) && Ban.get(p) == 2 ->
+                      Isi.put(p)
+                      p = p + x
+
+                      cond do
+                        check(p, x) && Ban.get(p) == 2 ->
+                          true
+
+                        check(p, x) && Ban.get(p) == 0 ->
+                          Vb.set()
+
+                          Enum.map(Isi.get(), fn y ->
+                            Ban.set(y, 0)
+                          end)
+
+                        true ->
+                          true
+                      end
+
+                    check(p, x) && Ban.get(p) == 0 ->
+                      Vb.set()
+
+                      Enum.map(Isi.get(), fn y ->
+                        Ban.set(y, 0)
+                      end)
+
+                    true ->
+                      true
+                  end
+
+                check(p, x) && Ban.get(p) == 0 ->
+                  Vb.set()
+
+                  Enum.map(Isi.get(), fn y ->
+                    Ban.set(y, 0)
+                  end)
+
+                true ->
+                  true
+              end
+
+              true
+
+            check(p, x) && Ban.get(p) == 0 ->
+              Vb.set()
+
+              Enum.map(Isi.get(), fn y ->
+                Ban.set(y, 0)
+              end)
+
+            true ->
+              true
+          end
+
+        check(p, x) && Ban.get(p) == 0 ->
+          Vb.set()
+
+          Enum.map(Isi.get(), fn y ->
+            Ban.set(y, 0)
+          end)
+
+        true ->
+          true
+      end
+    end
+  end
+
+  def sasu() do
+    Vb.cls()
+
+    [
+      0,
+      7,
+      56,
+      63,
+      18,
+      21,
+      42,
+      45,
+      2,
+      16,
+      5,
+      23,
+      40,
+      58,
+      47,
+      61,
+      3,
+      4,
+      11,
+      12,
+      19,
+      20,
+      24,
+      25,
+      26,
+      32,
+      33,
+      34,
+      29,
+      30,
+      31,
+      37,
+      38,
+      39,
+      43,
+      44,
+      51,
+      52,
+      59,
+      60,
+      1,
+      8,
+      9,
+      10,
+      17,
+      6,
+      13,
+      14,
+      15,
+      22,
+      41,
+      48,
+      49,
+      50,
+      57,
+      46,
+      53,
+      54,
+      55,
+      62
+    ]
+    |> Enum.map(fn p ->
+      if Ban.get(p) == 1 do
+        if Vb.get() == 0 do
+          [-9, 9, -7, 7, -1, 1, -8, 8]
+          |> Enum.map(fn x ->
+            if check(p, x) do
+              k = siro(p, x)
+            end
+          end)
+        end
+      end
+    end)
+
+    if Vb.get() == 0 do
+      IO.puts("pass")
+    end
+
+    ban()
+  end
+
+  def start do
+    Str.start_link()
+    Isi.start_link()
+    Ban.start_link()
+    Ban.init()
+    Vb.start_link()
+  end
+end
+```
+
+```elixir
+Osero.start()
+
+Osero.ban()
+```
+
+```elixir
+Osero.oku("4 3")
+```
+
+```elixir
+Osero.sasu()
+```
+
+```elixir
+Osero.oku("3 4")
+```
+
+```elixir
+Osero.sasu()
+```

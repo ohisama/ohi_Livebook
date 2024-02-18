@@ -46,3 +46,236 @@ Req.get!("https://qiita.com/api/v2/users/ohisama@github/items")
 |> Enum.map(&Map.take(&1, ["title", "url"]))
 |> Kino.DataTable.new()
 ```
+
+```elixir
+Req.get!("https://api.github.com/users/ohisama")
+|> Map.get(:body)
+```
+
+```elixir
+Req.get!("https://api.github.com/users/ohisama/repos?per_page=100")
+|> Map.get(:body)
+# |> Enum.map(&Map.take(&1, ["name", "url"]))
+|> Kino.DataTable.new()
+
+# |> Kino.Tree.new()
+```
+
+```elixir
+Req.get!("https://api.github.com/repos/ohisama/ohi_Livebook/contents/stage1/hello2.livemd")
+# |> Map.get(:body)
+# |> Enum.map(&Map.take(&1, ["name", "url"]))
+# |> Kino.DataTable.new()
+# |> Kino.Tree.new()
+```
+
+```elixir
+defmodule Notesclub.GithubAPI do
+  alias Notesclub.GithubAPI
+  require Logger
+  defstruct notebooks_data: nil, total_count: 0, response: nil, url: nil, errors: %{}
+
+  def get(options) do
+    options
+    |> build_url()
+    |> make_request()
+    |> extract_notebooks_data()
+  end
+
+  def get_user_info(username) do
+    username
+    |> build_url()
+    |> make_request()
+    |> extract_user_info()
+  end
+
+  defp extract_notebooks_data(%GithubAPI{response: response} = fetch) do
+    prepare_data(fetch, response.body["items"])
+  end
+
+  defp extract_user_info(%GithubAPI{response: response}) do
+    case response.status do
+      200 ->
+        user_info = %{
+          twitter_username: response.body["twitter_username"],
+          name: response.body["name"]
+        }
+
+        {:ok, user_info}
+
+      404 ->
+        {:error, :not_found}
+
+      _ ->
+        {:error, :uncaught_error}
+    end
+  end
+
+  defp prepare_data(fetch, nil), do: {:error, fetch}
+
+  defp prepare_data(%GithubAPI{response: response} = fetch, items) do
+    notebooks_data =
+      items
+      |> filter_private_repos(response)
+      |> Enum.map(fn item ->
+        repo = item["repository"]
+        owner = repo["owner"]
+
+        %{
+          github_filename: item["name"],
+          github_owner_login: owner["login"],
+          github_owner_avatar_url: owner["avatar_url"],
+          github_repo_name: repo["name"],
+          github_repo_full_name: repo["full_name"],
+          github_repo_fork: repo["fork"],
+          github_html_url: item["html_url"]
+        }
+      end)
+
+    fetch =
+      fetch
+      |> Map.put(:notebooks_data, notebooks_data)
+      |> Map.put(:total_count, response.body["total_count"])
+
+    {:ok, fetch}
+  end
+
+  defp filter_private_repos(items, response) do
+    Enum.filter(items, fn i ->
+      case i["repository"]["private"] do
+        false ->
+          i
+
+        _ ->
+          Logger.error(
+            "GithubAPI.Search fetched a private repo.\nRepo:\n" <>
+              inspect(i) <> "\nFull GithubAPI's response:\n" <> inspect(response)
+          )
+
+          false
+      end
+    end)
+  end
+
+  defp build_url(username: username, per_page: per_page, page: page, order: order) do
+    %GithubAPI{
+      url:
+        "https://api.github.com/search/code?q=user:#{username}+extension:livemd&per_page=#{per_page}&page=#{page}&sort=indexed&order=#{order}"
+    }
+  end
+
+  defp build_url(per_page: per_page, page: page, order: order) do
+    %GithubAPI{
+      url:
+        "https://api.github.com/search/code?q=extension:livemd&per_page=#{per_page}&page=#{page}&sort=indexed&order=#{order}"
+    }
+  end
+
+  defp build_url(username) do
+    %GithubAPI{
+      url: "https://api.github.com/users/#{username}"
+    }
+  end
+
+  defp make_request(%GithubAPI{} = fetch) do
+    github_api_key = Application.get_env(:notesclub, :github_api_key)
+
+    response =
+      Req.get!(fetch.url,
+        headers: [
+          Accept: ["application/vnd.github+json"]
+          # Authorization: ["token #{github_api_key}"]
+        ]
+      )
+
+    Map.put(fetch, :response, response)
+  end
+end
+
+Notesclub.GithubAPI.get_user_info("ohisama")
+```
+
+```elixir
+Req.get!("https://api.github.com/search/code?q=user:ohisama+extension:livemd")
+```
+
+```elixir
+Req.get!("https://api.github.com/search/code?q=user:ohisama+extension:livemd",
+  headers: [
+    Accept: ["application/vnd.github+json"],
+    Authorization: ["token ghp_"]
+  ]
+)
+```
+
+```elixir
+Req.get!("https://api.github.com/search/code?q=user:masahiro-999+extension:md",
+  headers: [
+    Accept: ["application/vnd.github+json"],
+    Authorization: ["token ghp_"]
+  ]
+)
+```
+
+```elixir
+openai_api_key_input = Kino.Input.password("Paste OpenAI API Key here:")
+```
+
+```elixir
+audio_tts_form =
+  Kino.Control.form(
+    [
+      model: Kino.Input.select("Model", [{"tts-1", "tts-1"}, {"tts-1-hd", "tts-1-hd"}]),
+      voice:
+        Kino.Input.select("Voice", [
+          {"alloy", "alloy"},
+          {"echo", "echo"},
+          {"fable", "fable"},
+          {"onyx", "onyx"},
+          {"nova", "nova"},
+          {"shimmer", "shimmer"}
+        ]),
+      speed: Kino.Input.range("Speed", default: 1.0, min: 0.25, max: 4.0, step: 0.25),
+      input: Kino.Input.textarea("Input")
+    ],
+    submit: "Create"
+  )
+```
+
+```elixir
+audio_tts_output_frame =
+  Kino.Frame.new()
+  |> Kino.render()
+
+Kino.listen(audio_tts_form, fn %{data: data} ->
+  openai_api_key = Kino.Input.read(openai_api_key_input)
+
+  cond do
+    openai_api_key == "" ->
+      Kino.Frame.render(audio_tts_output_frame, Kino.Text.new("Please add API key"))
+
+    String.length(data.input) < 2 ->
+      Kino.Frame.render(audio_tts_output_frame, Kino.Text.new("Please add input"))
+
+    true ->
+      Req.post!("https://api.openai.com/v1/audio/speech",
+        headers: %{
+          "authorization" => "Bearer #{openai_api_key}",
+          "content-type" => "application/json"
+        },
+        json: %{
+          "model" => data.model,
+          "voice" => data.voice,
+          "response_format" => "mp3",
+          "speed" => data.speed,
+          "input" => data.input
+        }
+      )
+      |> Map.get(:body)
+      |> Kino.Audio.new(:mp3, autoplay: true, loop: false)
+      |> then(fn audio_element ->
+        Kino.Frame.render(audio_tts_output_frame, audio_element)
+      end)
+  end
+end)
+```

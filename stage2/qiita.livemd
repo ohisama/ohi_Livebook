@@ -13,7 +13,7 @@ Mix.install([
 
 ```elixir
 defmodule Qiita do
-  @auth_header {"Authorization", "Bearer 1ad5804d4f290b6f015ebb122f70f530bb94299e"}
+  @auth_header {"Authorization", "Bearer "}
   def get_articles(page) do
     "https://qiita.com/api/v2/authenticated_user/items?page=#{page}&per_page=100"
     |> Req.get!(headers: [@auth_header])
